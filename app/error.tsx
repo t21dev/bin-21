@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 
-export default function PasteError({
+export default function GlobalError({
   error,
   reset,
 }: {
@@ -11,22 +11,21 @@ export default function PasteError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error('Paste page error:', error)
+    console.error('Application error:', error)
   }, [error])
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center justify-center px-4 py-16 text-center">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-error/10 sm:h-24 sm:w-24">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-error sm:h-12 sm:w-12" aria-hidden="true">
-          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-          <polyline points="13 2 13 9 20 9" />
-          <line x1="9" y1="13" x2="15" y2="19" />
-          <line x1="15" y1="13" x2="9" y2="19" />
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
       </div>
-      <h1 className="mt-6 text-xl font-semibold sm:text-2xl">Failed to load paste</h1>
+      <h1 className="mt-6 text-xl font-semibold sm:text-2xl">Something went wrong</h1>
       <p className="mt-2 max-w-md text-sm text-[var(--text-muted)] sm:text-base">
-        Something went wrong while loading this paste. It may be temporarily unavailable.
+        An unexpected error occurred. Try reloading the page or go back to the homepage.
       </p>
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <button
@@ -49,7 +48,7 @@ export default function PasteError({
           href="/"
           className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] px-6 text-sm font-medium transition-colors hover:bg-[var(--surface)]"
         >
-          Create new paste
+          Go home
         </Link>
       </div>
       {error.digest && (

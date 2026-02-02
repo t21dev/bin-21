@@ -3,10 +3,13 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPaste } from '@/server/actions/paste.actions'
+import { highlightAction } from '@/server/actions/highlight.actions'
 import { CodeEditor } from './code-editor'
 import { LanguageSelector } from './language-selector'
 import { MarkdownPreview } from './markdown-preview'
+import { ThemeSelector } from './theme-selector'
 import type { ExpiresIn } from '@/types'
+import type { ShikiThemeId } from '@/lib/shiki'
 
 const EXPIRY_OPTIONS: { value: ExpiresIn; label: string }[] = [
   { value: 'never', label: 'Never' },
@@ -29,6 +32,9 @@ export function PasteForm() {
   const [isEncrypted, setIsEncrypted] = useState(false)
   const [password, setPassword] = useState('')
   const [showPreview, setShowPreview] = useState(false)
+  const [previewHtml, setPreviewHtml] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewTheme, setPreviewTheme] = useState<ShikiThemeId>('github-dark')
   const [error, setError] = useState('')
   const [formLoadTime] = useState(() => Date.now())
 
@@ -48,6 +54,24 @@ export function PasteForm() {
     return () => window.removeEventListener('keydown', handleKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, language, title, expiresIn, burnAfter, isEncrypted, password])
+
+  // Fetch preview when toggled on or theme changes
+  useEffect(() => {
+    if (!showPreview || isMarkdown || !content.trim()) return
+
+    let cancelled = false
+    setPreviewLoading(true)
+
+    highlightAction(content, language, previewTheme).then((result) => {
+      if (cancelled) return
+      if ('html' in result) {
+        setPreviewHtml(result.html)
+      }
+      setPreviewLoading(false)
+    })
+
+    return () => { cancelled = true }
+  }, [showPreview, previewTheme, content, language, isMarkdown])
 
   async function encryptContent(plaintext: string, pass: string) {
     const encoder = new TextEncoder()
@@ -131,6 +155,10 @@ export function PasteForm() {
     })
   }
 
+  function handleTogglePreview() {
+    setShowPreview(!showPreview)
+  }
+
   return (
     <div className="space-y-4">
       {/* Title */}
@@ -150,20 +178,55 @@ export function PasteForm() {
       <div className="flex flex-wrap items-center gap-3">
         <LanguageSelector value={language} onChange={setLanguage} />
 
-        {isMarkdown && content && (
+        {content && (
           <button
             type="button"
-            onClick={() => setShowPreview(!showPreview)}
-            className="rounded-md px-3 py-1 text-sm text-primary transition-colors hover:bg-primary/10"
+            onClick={handleTogglePreview}
+            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+              showPreview
+                ? 'bg-primary/10 text-primary'
+                : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
+            }`}
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-1.5 inline-block" aria-hidden="true">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
             {showPreview ? 'Edit' : 'Preview'}
           </button>
+        )}
+
+        {showPreview && !isMarkdown && (
+          <div className="ml-auto">
+            <ThemeSelector value={previewTheme} onChange={setPreviewTheme} />
+          </div>
         )}
       </div>
 
       {/* Editor / Preview */}
-      {showPreview && isMarkdown ? (
-        <MarkdownPreview content={content} />
+      {showPreview ? (
+        isMarkdown ? (
+          <MarkdownPreview content={content} />
+        ) : previewLoading ? (
+          <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+            <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Highlighting...
+            </div>
+          </div>
+        ) : previewHtml ? (
+          <div
+            className="overflow-x-auto rounded-lg border border-[var(--border)]"
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+          />
+        ) : (
+          <pre className="min-h-[300px] overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 font-mono text-sm leading-relaxed">
+            <code>{content}</code>
+          </pre>
+        )
       ) : (
         <CodeEditor
           value={content}

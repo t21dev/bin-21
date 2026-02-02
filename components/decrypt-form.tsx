@@ -58,27 +58,30 @@ export function DecryptForm({ encryptedContent, iv, salt, onDecrypted }: Decrypt
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary">
+    <div className="flex flex-col items-center gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 text-center sm:p-8">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary" aria-hidden="true">
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
       </svg>
       <h2 className="text-lg font-semibold">This paste is encrypted</h2>
       <p className="text-sm text-[var(--text-muted)]">Enter the password to decrypt and view the content.</p>
 
-      <div className="flex w-full max-w-sm gap-2">
+      <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row">
+        <label htmlFor="decrypt-password" className="sr-only">Decryption password</label>
         <input
+          id="decrypt-password"
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleDecrypt()}
+          autoComplete="current-password"
           className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-primary"
         />
         <button
           onClick={handleDecrypt}
           disabled={loading || !password}
-          className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-primary-hover disabled:opacity-50"
+          className="h-11 rounded-lg bg-primary px-4 text-sm font-medium text-black transition-colors hover:bg-primary-hover disabled:opacity-50"
         >
           {loading ? 'Decrypting...' : 'Decrypt'}
         </button>

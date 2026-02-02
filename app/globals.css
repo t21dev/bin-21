@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme inline {
   --color-primary: #4ADE80;
@@ -74,6 +75,11 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Pointer cursor for interactive elements */
+button, select, [role="button"], [role="option"], a[href], label[for], summary {
+  cursor: pointer;
 }
 
 /* Pattern background for dark mode */

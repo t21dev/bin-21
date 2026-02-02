@@ -7,10 +7,22 @@ const CORE_LANGUAGES = [
   'bash', 'sql', 'tsx', 'jsx',
 ]
 
+export const SHIKI_THEMES = [
+  { id: 'github-dark', name: 'GitHub Dark' },
+  { id: 'github-light', name: 'GitHub Light' },
+  { id: 'dracula', name: 'Dracula' },
+  { id: 'one-dark-pro', name: 'One Dark Pro' },
+  { id: 'nord', name: 'Nord' },
+] as const
+
+export type ShikiThemeId = (typeof SHIKI_THEMES)[number]['id']
+
+const ALL_THEME_IDS = SHIKI_THEMES.map((t) => t.id)
+
 export async function getHighlighter(): Promise<Highlighter> {
   if (!highlighterInstance) {
     highlighterInstance = await createHighlighter({
-      themes: ['github-dark', 'github-light'],
+      themes: ALL_THEME_IDS,
       langs: CORE_LANGUAGES,
     })
   }
@@ -20,7 +32,7 @@ export async function getHighlighter(): Promise<Highlighter> {
 export async function highlightCode(
   code: string,
   language: string,
-  theme: 'dark' | 'light' = 'dark'
+  theme: ShikiThemeId = 'github-dark'
 ): Promise<string> {
   const highlighter = await getHighlighter()
 
@@ -37,8 +49,5 @@ export async function highlightCode(
     ? language
     : 'text'
 
-  return highlighter.codeToHtml(code, {
-    lang,
-    theme: theme === 'dark' ? 'github-dark' : 'github-light',
-  })
+  return highlighter.codeToHtml(code, { lang, theme })
 }
