@@ -17,7 +17,10 @@ const createPasteSchema = z.object({
   // Bot protection fields
   _honeypot: z.string().optional(),
   _timestamp: z.number().optional(),
-})
+}).refine(
+  (data) => !data.isEncrypted || (data.encryptionIv && data.encryptionSalt),
+  { message: 'Encryption IV and salt are required for encrypted pastes', path: ['encryptionIv'] }
+)
 
 export async function createPaste(
   input: z.infer<typeof createPasteSchema>

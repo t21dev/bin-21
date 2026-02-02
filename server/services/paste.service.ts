@@ -70,8 +70,8 @@ export async function getPaste(id: string): Promise<PasteWithContent | null> {
     .set({ viewCount: sql`${pastes.viewCount} + 1` })
     .where(eq(pastes.id, id))
 
-  // If burn after reading, delete immediately after this view
-  if (paste.burnAfter) {
+  // If burn after reading, delete after 2 views (creator redirect + recipient)
+  if (paste.burnAfter && paste.viewCount + 1 >= 2) {
     await deletePaste(id, paste.r2Key)
   }
 

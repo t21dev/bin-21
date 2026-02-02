@@ -1,7 +1,10 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { createPaste } from '@/server/actions/paste.actions'
 import { highlightAction } from '@/server/actions/highlight.actions'
 import { CodeEditor } from './code-editor'
@@ -20,40 +23,79 @@ const EXPIRY_OPTIONS: { value: ExpiresIn; label: string }[] = [
   { value: '1M', label: '1 month' },
 ]
 
+const pasteFormSchema = z.object({
+  content: z.string().min(1, 'Content is required').max(2_000_000, 'Content too large (max 2 million characters)'),
+  title: z.string().max(255),
+  language: z.string(),
+  expiresIn: z.enum(['never', '10m', '1h', '1d', '1w', '1M']),
+  burnAfter: z.boolean(),
+  isEncrypted: z.boolean(),
+  password: z.string(),
+}).refine(
+  (data) => !data.isEncrypted || data.password.length > 0,
+  { message: 'Password is required when encryption is enabled', path: ['password'] }
+)
+
+type PasteFormValues = z.input<typeof pasteFormSchema>
+
 export function PasteForm() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const formRef = useRef<HTMLFormElement>(null)
 
-  const [content, setContent] = useState('')
-  const [title, setTitle] = useState('')
-  const [language, setLanguage] = useState('text')
-  const [expiresIn, setExpiresIn] = useState<ExpiresIn>('never')
-  const [burnAfter, setBurnAfter] = useState(false)
-  const [isEncrypted, setIsEncrypted] = useState(false)
-  const [password, setPassword] = useState('')
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    clearErrors,
+    formState: { errors },
+  } = useForm<PasteFormValues>({
+    resolver: zodResolver(pasteFormSchema),
+    defaultValues: {
+      content: '',
+      title: '',
+      language: 'text',
+      expiresIn: 'never',
+      burnAfter: false,
+      isEncrypted: false,
+      password: '',
+    },
+  })
+
   const [showPreview, setShowPreview] = useState(false)
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewTheme, setPreviewTheme] = useState<ShikiThemeId>('github-dark')
-  const [error, setError] = useState('')
+  const [serverError, setServerError] = useState('')
   const [formLoadTime] = useState(() => Date.now())
-
-  // Honeypot
   const [honeypot, setHoneypot] = useState('')
 
+  const content = watch('content')
+  const language = watch('language')
+  const isEncrypted = watch('isEncrypted')
+
   const isMarkdown = language === 'markdown'
+
+  // Clear password and errors when encrypt is unchecked
+  useEffect(() => {
+    if (!isEncrypted) {
+      setValue('password', '')
+      clearErrors('password')
+    }
+  }, [isEncrypted, setValue, clearErrors])
 
   // Handle Ctrl+Enter to submit
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && content.trim()) {
-        handleSubmit()
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        formRef.current?.requestSubmit()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [content, language, title, expiresIn, burnAfter, isEncrypted, password])
+  }, [])
 
   // Fetch preview when toggled on or theme changes
   useEffect(() => {
@@ -105,27 +147,17 @@ export function PasteForm() {
     }
   }
 
-  async function handleSubmit() {
-    if (!content.trim()) {
-      setError('Content is required')
-      return
-    }
-
-    if (content.length > 2_000_000) {
-      setError('Content too large (max 2 million characters)')
-      return
-    }
-
-    setError('')
+  async function onSubmit(data: PasteFormValues) {
+    setServerError('')
 
     startTransition(async () => {
       try {
-        let finalContent = content
+        let finalContent = data.content
         let encryptionIv: string | undefined
         let encryptionSalt: string | undefined
 
-        if (isEncrypted && password) {
-          const encrypted = await encryptContent(content, password)
+        if (data.isEncrypted && data.password) {
+          const encrypted = await encryptContent(data.content, data.password)
           finalContent = encrypted.encrypted
           encryptionIv = encrypted.iv
           encryptionSalt = encrypted.salt
@@ -133,13 +165,13 @@ export function PasteForm() {
 
         const result = await createPaste({
           content: finalContent,
-          title: title || undefined,
-          language,
-          isEncrypted: isEncrypted && !!password,
+          title: data.title || undefined,
+          language: data.language,
+          isEncrypted: data.isEncrypted,
           encryptionIv,
           encryptionSalt,
-          expiresIn,
-          burnAfter,
+          expiresIn: data.expiresIn,
+          burnAfter: data.burnAfter,
           _honeypot: honeypot || undefined,
           _timestamp: formLoadTime,
         })
@@ -147,10 +179,10 @@ export function PasteForm() {
         if (result.success && result.data) {
           router.push(`/${result.data.id}`)
         } else {
-          setError(result.error || 'Failed to create paste')
+          setServerError(result.error || 'Failed to create paste')
         }
       } catch {
-        setError('Something went wrong')
+        setServerError('Something went wrong')
       }
     })
   }
@@ -160,15 +192,14 @@ export function PasteForm() {
   }
 
   return (
-    <div className="space-y-4">
+    <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {/* Title */}
       <label htmlFor="paste-title" className="sr-only">Title</label>
       <input
         id="paste-title"
         type="text"
         placeholder="Title (optional)"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        {...register('title')}
         maxLength={255}
         autoComplete="off"
         className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-primary"
@@ -176,7 +207,13 @@ export function PasteForm() {
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <LanguageSelector value={language} onChange={setLanguage} />
+        <Controller
+          name="language"
+          control={control}
+          render={({ field }) => (
+            <LanguageSelector value={field.value} onChange={field.onChange} />
+          )}
+        />
 
         {content && (
           <button
@@ -228,12 +265,23 @@ export function PasteForm() {
           </pre>
         )
       ) : (
-        <CodeEditor
-          value={content}
-          onChange={setContent}
-          language={language}
-          placeholder={isMarkdown ? 'Write your Markdown here...' : 'Paste your code here...'}
+        <Controller
+          name="content"
+          control={control}
+          render={({ field }) => (
+            <CodeEditor
+              value={field.value}
+              onChange={field.onChange}
+              language={language}
+              placeholder={isMarkdown ? 'Write your Markdown here...' : 'Paste your code here...'}
+            />
+          )}
         />
+      )}
+
+      {/* Content error */}
+      {errors.content && (
+        <p className="text-sm text-error">{errors.content.message}</p>
       )}
 
       {/* Options row */}
@@ -243,8 +291,7 @@ export function PasteForm() {
           <label htmlFor="paste-expiry" className="text-[var(--text-muted)]">Expires:</label>
           <select
             id="paste-expiry"
-            value={expiresIn}
-            onChange={(e) => setExpiresIn(e.target.value as ExpiresIn)}
+            {...register('expiresIn')}
             className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm outline-none"
           >
             {EXPIRY_OPTIONS.map((opt) => (
@@ -259,8 +306,7 @@ export function PasteForm() {
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            checked={burnAfter}
-            onChange={(e) => setBurnAfter(e.target.checked)}
+            {...register('burnAfter')}
             className="h-4 w-4 rounded border-[var(--border)] accent-primary"
           />
           Burn after reading
@@ -270,8 +316,7 @@ export function PasteForm() {
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            checked={isEncrypted}
-            onChange={(e) => setIsEncrypted(e.target.checked)}
+            {...register('isEncrypted')}
             className="h-4 w-4 rounded border-[var(--border)] accent-primary"
           />
           Encrypt
@@ -286,11 +331,15 @@ export function PasteForm() {
             id="paste-password"
             type="password"
             placeholder="Encryption password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            {...register('password')}
             autoComplete="new-password"
-            className="w-full max-w-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-primary"
+            className={`w-full max-w-xs rounded-lg border bg-[var(--surface)] px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-primary ${
+              errors.password ? 'border-error' : 'border-[var(--border)]'
+            }`}
           />
+          {errors.password && (
+            <p className="mt-1 text-sm text-error">{errors.password.message}</p>
+          )}
         </div>
       )}
 
@@ -306,16 +355,16 @@ export function PasteForm() {
         />
       </div>
 
-      {/* Error */}
-      {error && (
-        <p className="text-sm text-error">{error}</p>
+      {/* Server error */}
+      {serverError && (
+        <p className="text-sm text-error">{serverError}</p>
       )}
 
       {/* Submit */}
       <div className="flex items-center gap-3">
         <button
-          onClick={handleSubmit}
-          disabled={isPending || !content.trim()}
+          type="submit"
+          disabled={isPending}
           className="flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-black transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? (
@@ -334,6 +383,6 @@ export function PasteForm() {
           Ctrl+Enter to submit
         </span>
       </div>
-    </div>
+    </form>
   )
 }
