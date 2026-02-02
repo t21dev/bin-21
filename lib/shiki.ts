@@ -2,25 +2,16 @@ import { createHighlighter, type Highlighter } from 'shiki'
 
 let highlighterInstance: Highlighter | null = null
 
-const BUNDLED_LANGUAGES = [
-  'javascript', 'typescript', 'python', 'rust', 'go', 'java', 'c', 'cpp',
-  'csharp', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'html', 'css',
-  'json', 'yaml', 'toml', 'xml', 'markdown', 'sql', 'bash', 'dockerfile',
-  'graphql', 'tsx', 'jsx', 'vue', 'svelte', 'scss', 'less', 'powershell',
-  'r', 'julia', 'lua', 'perl', 'haskell', 'elixir', 'clojure', 'fsharp',
-  'dart', 'zig', 'diff', 'ini', 'makefile', 'nginx', 'terraform',
-  'prisma', 'latex', 'astro', 'mdx', 'fish', 'objective-c', 'ocaml',
-  'erlang', 'groovy', 'solidity', 'bat', 'jsonc', 'postcss', 'proto',
-  'nix', 'ada', 'awk', 'coffeescript', 'crystal', 'd', 'handlebars',
-  'glsl', 'hlsl', 'log', 'mermaid', 'regex', 'smalltalk', 'systemverilog',
-  'tcl', 'twig', 'vb', 'verilog', 'vhdl', 'viml', 'wgsl',
+const CORE_LANGUAGES = [
+  'javascript', 'typescript', 'python', 'html', 'css', 'json', 'markdown',
+  'bash', 'sql', 'tsx', 'jsx',
 ]
 
 export async function getHighlighter(): Promise<Highlighter> {
   if (!highlighterInstance) {
     highlighterInstance = await createHighlighter({
       themes: ['github-dark', 'github-light'],
-      langs: BUNDLED_LANGUAGES,
+      langs: CORE_LANGUAGES,
     })
   }
   return highlighterInstance
@@ -32,6 +23,15 @@ export async function highlightCode(
   theme: 'dark' | 'light' = 'dark'
 ): Promise<string> {
   const highlighter = await getHighlighter()
+
+  // Load language on demand if not already loaded
+  if (!highlighter.getLoadedLanguages().includes(language)) {
+    try {
+      await highlighter.loadLanguage(language as Parameters<typeof highlighter.loadLanguage>[0])
+    } catch {
+      // Language not available, fall back to text
+    }
+  }
 
   const lang = highlighter.getLoadedLanguages().includes(language)
     ? language

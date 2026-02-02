@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useMemo } from 'react'
 
 interface CodeEditorProps {
   value: string
@@ -12,6 +12,12 @@ interface CodeEditorProps {
 export function CodeEditor({ value, onChange, placeholder = 'Paste your code here...' }: CodeEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const displaySize = useMemo(() => {
+    if (value.length === 0) return ''
+    const bytes = new TextEncoder().encode(value).length
+    return bytes > 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${bytes} B`
+  }, [value])
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       // Tab key inserts 2 spaces instead of changing focus
@@ -22,7 +28,8 @@ export function CodeEditor({ value, onChange, placeholder = 'Paste your code her
 
         const start = textarea.selectionStart
         const end = textarea.selectionEnd
-        const newValue = value.substring(0, start) + '  ' + value.substring(end)
+        const currentValue = textarea.value
+        const newValue = currentValue.substring(0, start) + '  ' + currentValue.substring(end)
         onChange(newValue)
 
         requestAnimationFrame(() => {
@@ -31,7 +38,7 @@ export function CodeEditor({ value, onChange, placeholder = 'Paste your code her
         })
       }
     },
-    [value, onChange]
+    [onChange]
   )
 
   return (
@@ -45,11 +52,9 @@ export function CodeEditor({ value, onChange, placeholder = 'Paste your code her
         spellCheck={false}
         className="h-full min-h-[300px] w-full resize-y bg-transparent p-4 font-mono text-sm leading-relaxed outline-none placeholder:text-[var(--text-muted)]"
       />
-      {value.length > 0 && (
-        <div className="absolute bottom-2 right-3 text-xs text-[var(--text-muted)]">
-          {new TextEncoder().encode(value).length > 1024
-            ? `${(new TextEncoder().encode(value).length / 1024).toFixed(1)} KB`
-            : `${new TextEncoder().encode(value).length} B`}
+      {displaySize && (
+        <div className="absolute bottom-2 right-3 text-xs tabular-nums text-[var(--text-muted)]">
+          {displaySize}
         </div>
       )}
     </div>

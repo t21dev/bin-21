@@ -30,7 +30,7 @@ export function PasteForm() {
   const [password, setPassword] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const [error, setError] = useState('')
-  const [formLoadTime] = useState(Date.now())
+  const [formLoadTime] = useState(() => Date.now())
 
   // Honeypot
   const [honeypot, setHoneypot] = useState('')
@@ -87,6 +87,11 @@ export function PasteForm() {
       return
     }
 
+    if (content.length > 2_000_000) {
+      setError('Content too large (max 2 million characters)')
+      return
+    }
+
     setError('')
 
     startTransition(async () => {
@@ -129,12 +134,15 @@ export function PasteForm() {
   return (
     <div className="space-y-4">
       {/* Title */}
+      <label htmlFor="paste-title" className="sr-only">Title</label>
       <input
+        id="paste-title"
         type="text"
         placeholder="Title (optional)"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         maxLength={255}
+        autoComplete="off"
         className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-primary"
       />
 
@@ -169,8 +177,9 @@ export function PasteForm() {
       <div className="flex flex-wrap items-center gap-4">
         {/* Expiry */}
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-[var(--text-muted)]">Expires:</span>
+          <label htmlFor="paste-expiry" className="text-[var(--text-muted)]">Expires:</label>
           <select
+            id="paste-expiry"
             value={expiresIn}
             onChange={(e) => setExpiresIn(e.target.value as ExpiresIn)}
             className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm outline-none"
@@ -208,13 +217,18 @@ export function PasteForm() {
 
       {/* Password field */}
       {isEncrypted && (
-        <input
-          type="password"
-          placeholder="Encryption password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full max-w-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-primary"
-        />
+        <div>
+          <label htmlFor="paste-password" className="sr-only">Encryption password</label>
+          <input
+            id="paste-password"
+            type="password"
+            placeholder="Encryption password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            className="w-full max-w-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-primary"
+          />
+        </div>
       )}
 
       {/* Honeypot fields */}
@@ -239,7 +253,7 @@ export function PasteForm() {
         <button
           onClick={handleSubmit}
           disabled={isPending || !content.trim()}
-          className="flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-black transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-black transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? (
             <>

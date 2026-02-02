@@ -6,7 +6,7 @@ import * as pasteService from '@/server/services/paste.service'
 import type { ActionResult, PasteWithContent } from '@/types'
 
 const createPasteSchema = z.object({
-  content: z.string().min(1, 'Content is required').max(5 * 1024 * 1024, 'Content too large (max 5MB)'),
+  content: z.string().min(1, 'Content is required').max(2_000_000, 'Content too large (max 2 million characters)'),
   title: z.string().max(255).optional(),
   language: z.string().default('text'),
   isEncrypted: z.boolean().default(false),

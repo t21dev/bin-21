@@ -138,4 +138,25 @@ pre.shiki {
 :focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Tabular nums for stats */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Balanced text wrap for headings */
+h1, h2, h3 {
+  text-wrap: balance;
 }

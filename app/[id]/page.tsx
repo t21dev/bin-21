@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import { getPaste } from '@/server/actions/paste.actions'
 import { highlightCode } from '@/lib/shiki'
@@ -7,9 +8,14 @@ interface PageProps {
   params: Promise<{ id: string }>
 }
 
+// Deduplicate getPaste calls within the same request (generateMetadata + page)
+const getCachedPaste = cache(async (id: string) => {
+  return getPaste(id)
+})
+
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params
-  const result = await getPaste(id)
+  const result = await getCachedPaste(id)
 
   if (!result.success || !result.data) {
     return { title: 'Paste Not Found - Bin 21' }
@@ -26,7 +32,7 @@ export async function generateMetadata({ params }: PageProps) {
 
 export default async function PastePage({ params }: PageProps) {
   const { id } = await params
-  const result = await getPaste(id)
+  const result = await getCachedPaste(id)
 
   if (!result.success || !result.data) {
     notFound()
