@@ -125,6 +125,8 @@ npm run db:studio    # Open Drizzle Studio
 
 ## Deployment
 
+> **Self-hosting?** See the full [Self-Hosting Guide](SELF-HOSTING.md) for Docker Compose, MinIO, reverse proxy, and more.
+
 ### Railway (Recommended)
 
 1. Create a new project on [Railway](https://railway.com)
