@@ -1,0 +1,7 @@
+<svg viewBox="0 0 200 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="48" height="48" rx="10" fill="#0A0A0A" stroke="#4ADE80" stroke-width="2"/>
+  <text x="24" y="27" dominant-baseline="middle" text-anchor="middle" fill="#4ADE80" font-family="ui-monospace, monospace" font-weight="800" font-size="20">21</text>
+  <text x="62" y="22" fill="#F8FAFC" font-family="system-ui, sans-serif" font-weight="700" font-size="20">Bin</text>
+  <text x="95" y="22" fill="#4ADE80" font-family="system-ui, sans-serif" font-weight="700" font-size="20">21</text>
+  <text x="62" y="40" fill="#94A3B8" font-family="system-ui, sans-serif" font-weight="400" font-size="11">Modern Pastebin</text>
+</svg>
