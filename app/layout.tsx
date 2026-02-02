@@ -17,10 +17,24 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bin21.dev'
+
 export const metadata: Metadata = {
   title: 'Bin 21 - Modern Pastebin',
   description: 'A modern, privacy-focused pastebin. Share code and text instantly with 150+ language syntax highlighting, Markdown support, and client-side encryption.',
   keywords: ['pastebin', 'code sharing', 'paste', 'snippet', 'markdown', 'encrypted'],
+  metadataBase: new URL(appUrl),
+  openGraph: {
+    title: 'Bin 21 - Modern Pastebin',
+    description: 'Share code and text instantly with syntax highlighting, Markdown support, and client-side encryption.',
+    siteName: 'Bin 21',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Bin 21 - Modern Pastebin',
+    description: 'Share code and text instantly with syntax highlighting, Markdown support, and client-side encryption.',
+  },
 }
 
 export default function RootLayout({
