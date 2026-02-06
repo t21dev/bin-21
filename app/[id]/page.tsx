@@ -22,11 +22,25 @@ export async function generateMetadata({ params }: PageProps) {
   }
 
   const paste = result.data
+  const title = `${paste.title || 'Untitled'} - Bin 21`
+  const description = paste.isEncrypted
+    ? 'Encrypted paste on Bin 21'
+    : `${paste.language} paste on Bin 21`
+
   return {
-    title: `${paste.title || 'Untitled'} - Bin 21`,
-    description: paste.isEncrypted
-      ? 'Encrypted paste on Bin 21'
-      : `${paste.language} paste on Bin 21`,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      siteName: 'Bin 21',
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
   }
 }
 

@@ -1,8 +1,9 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
+import { ServiceWorkerRegister } from '@/components/sw-register'
 import './globals.css'
 
 const inter = Inter({
@@ -19,11 +20,25 @@ const jetbrainsMono = JetBrains_Mono({
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bin21.dev'
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+  ],
+  viewportFit: 'cover',
+}
+
 export const metadata: Metadata = {
   title: 'Bin 21 - Modern Pastebin',
   description: 'A modern, privacy-focused pastebin. Share code and text instantly with 150+ language syntax highlighting, Markdown support, and client-side encryption.',
   keywords: ['pastebin', 'code sharing', 'paste', 'snippet', 'markdown', 'encrypted'],
   metadataBase: new URL(appUrl),
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Bin 21',
+  },
   openGraph: {
     title: 'Bin 21 - Modern Pastebin',
     description: 'Share code and text instantly with syntax highlighting, Markdown support, and client-side encryption.',
@@ -34,6 +49,9 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Bin 21 - Modern Pastebin',
     description: 'Share code and text instantly with syntax highlighting, Markdown support, and client-side encryption.',
+  },
+  icons: {
+    apple: '/icons/apple-touch-icon.png',
   },
 }
 
@@ -63,6 +81,7 @@ export default function RootLayout({
             <Footer />
           </div>
         </ThemeProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   )

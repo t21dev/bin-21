@@ -1,0 +1,44 @@
+# Bin 21
+
+> A modern, privacy-focused pastebin service.
+
+## URL
+
+https://bin21.dev
+
+## Description
+
+Bin 21 is a fast, minimal pastebin for sharing code and text. It supports 150+ programming languages with syntax highlighting (powered by Shiki), GitHub Flavored Markdown rendering, and optional client-side AES-256-GCM encryption for private pastes. Pastes can have configurable expiration times and burn-after-reading functionality.
+
+## Key Features
+
+- Syntax highlighting for 150+ languages (same engine as VS Code)
+- Markdown rendering with GFM, math (KaTeX), and code highlighting
+- Client-side AES-256-GCM encryption (password never leaves the browser)
+- Configurable expiration (10 minutes, 1 hour, 1 day, 1 week, 1 month, or never)
+- Burn after reading (auto-delete after viewed)
+- Raw paste content access
+- Dark mode optimized UI
+
+## API
+
+### Create a Paste
+
+Pastes are created via the web interface at https://bin21.dev
+
+### View a Paste
+
+`GET https://bin21.dev/{paste-id}` — View a paste with syntax highlighting
+
+### Raw Content
+
+`GET https://bin21.dev/{paste-id}/raw` — Get raw paste content as plain text
+
+## Tech Stack
+
+- Next.js (App Router)
+- TypeScript
+- Tailwind CSS
+- Shiki (syntax highlighting)
+- PostgreSQL (metadata)
+- Cloudflare R2 (content storage)
