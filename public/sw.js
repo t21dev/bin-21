@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bin21-v1'
+const CACHE_NAME = 'bin21-v2'
 const OFFLINE_URL = '/offline'
 
 self.addEventListener('install', (event) => {

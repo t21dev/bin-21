@@ -66,6 +66,21 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
 
   async function handleShare() {
     const url = window.location.href
+    const shareData = {
+      title: paste.title || 'Untitled Paste',
+      url,
+    }
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData)
+        return
+      } catch (err) {
+        // User cancelled or share failed — fall back to clipboard
+        if (err instanceof Error && err.name === 'AbortError') return
+      }
+    }
+
     await navigator.clipboard.writeText(url)
     setShareLabel('Copied URL!')
     setTimeout(() => setShareLabel('Share'), 2000)
