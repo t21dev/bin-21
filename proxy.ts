@@ -13,6 +13,16 @@ export function proxy(request: NextRequest) {
   if (request.method === 'POST') {
     prefix = 'create'
     config = RATE_LIMITS.create
+  } else if (path === '/admin') {
+    // Gate here rather than in the page: the admin route streams, so a
+    // notFound() inside its Suspense boundary lands after the 200 has already
+    // been committed. Short-circuiting before render gives a real 404.
+    if (!process.env.ADMIN_TOKEN) {
+      return new NextResponse(null, { status: 404 })
+    }
+    // Not a paste view. Login attempts are throttled separately, and harder,
+    // inside the adminLogin action.
+    return NextResponse.next()
   } else if (path.match(/^\/[a-zA-Z0-9_-]+$/)) {
     prefix = 'view'
     config = RATE_LIMITS.view

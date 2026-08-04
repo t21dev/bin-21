@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { DecryptForm } from './decrypt-form'
 import { MarkdownPreview } from './markdown-preview'
 import { ThemeSelector } from './theme-selector'
@@ -24,6 +24,16 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
   const [reHighlightedHtml, setReHighlightedHtml] = useState<string | null>(null)
   const [themeLoading, setThemeLoading] = useState(false)
   const requestId = useRef(0)
+
+  // Cache Components hides a route with React <Activity> instead of unmounting
+  // it. Without this, decrypted plaintext would stay in memory after navigating
+  // away and reappear on back-navigation without the password being re-entered.
+  useEffect(() => {
+    return () => {
+      setDecryptedContent(null)
+      setReHighlightedHtml(null)
+    }
+  }, [])
 
   const displayContent = decryptedContent ?? paste.content
   const needsDecryption = paste.isEncrypted && !decryptedContent

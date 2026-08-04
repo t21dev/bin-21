@@ -44,6 +44,17 @@ export function LanguageSelector({ value, onChange }: LanguageSelectorProps) {
     }
   }, [open])
 
+  // Cache Components hides a route with React <Activity> rather than unmounting
+  // it, so an open dropdown would still be open on back-navigation. Effects do
+  // still clean up when the route is hidden, so close it there.
+  useEffect(() => {
+    return () => {
+      setOpen(false)
+      setSearch('')
+      setHighlightIndex(-1)
+    }
+  }, [])
+
   // Scroll highlighted item into view
   useEffect(() => {
     if (highlightIndex >= 0 && listRef.current) {

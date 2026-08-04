@@ -1,7 +1,5 @@
 import { ImageResponse } from 'next/og'
 
-export const runtime = 'edge'
-
 export const alt = 'Bin 21 - Modern Pastebin'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'

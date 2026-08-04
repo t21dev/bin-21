@@ -1,27 +1,23 @@
-import { cache } from 'react'
+import { Suspense, cache } from 'react'
 import { notFound } from 'next/navigation'
-import { getPaste } from '@/server/actions/paste.actions'
+import { connection } from 'next/server'
+import { readPaste, readPasteMetadata, recordView } from '@/server/services/paste.service'
 import { highlightCode } from '@/lib/shiki'
 import { PasteViewer } from '@/components/paste-viewer'
+import { PasteSkeleton } from '@/components/paste-skeleton'
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
 
-// Deduplicate getPaste calls within the same request (generateMetadata + page)
-const getCachedPaste = cache(async (id: string) => {
-  return getPaste(id)
-})
-
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params
-  const result = await getCachedPaste(id)
+  const paste = await readPasteMetadata(id)
 
-  if (!result.success || !result.data) {
+  if (!paste) {
     return { title: 'Paste Not Found - Bin 21' }
   }
 
-  const paste = result.data
   const title = `${paste.title || 'Untitled'} - Bin 21`
   const description = paste.isEncrypted
     ? 'Encrypted paste on Bin 21'
@@ -44,15 +40,25 @@ export async function generateMetadata({ params }: PageProps) {
   }
 }
 
-export default async function PastePage({ params }: PageProps) {
-  const { id } = await params
-  const result = await getCachedPaste(id)
+// `params` is awaited inside the Suspense boundary, not here, so Next.js can
+// prerender a static shell for this route even though the id is unknown.
+export default function PastePage({ params }: PageProps) {
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <Suspense fallback={<PasteSkeleton />}>
+        <Paste params={params} />
+      </Suspense>
+    </div>
+  )
+}
 
-  if (!result.success || !result.data) {
+async function Paste({ params }: PageProps) {
+  const { id } = await params
+  const paste = await readPaste(id)
+
+  if (!paste) {
     notFound()
   }
-
-  const paste = result.data
 
   // Server-side syntax highlighting (skip for encrypted/markdown)
   let highlightedHtml: string | undefined
@@ -65,8 +71,26 @@ export default async function PastePage({ params }: PageProps) {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <PasteViewer paste={paste} highlightedHtml={highlightedHtml} />
-    </div>
+    <>
+      <PasteViewer
+        // readPaste is pure, so the count excludes the view being served now.
+        paste={{ ...paste, viewCount: paste.viewCount + 1 }}
+        highlightedHtml={highlightedHtml}
+      />
+      <ViewRecorder id={id} />
+    </>
   )
+}
+
+/**
+ * The single place a view is recorded. `connection()` pins this to request time,
+ * so it can never fire during a prerender or a link prefetch — which would
+ * otherwise inflate counts and burn burn-after-read pastes prematurely.
+ */
+const recordViewOnce = cache(recordView)
+
+async function ViewRecorder({ id }: { id: string }) {
+  await connection()
+  await recordViewOnce(id)
+  return null
 }

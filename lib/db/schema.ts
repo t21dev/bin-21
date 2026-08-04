@@ -1,21 +1,28 @@
-import { pgTable, varchar, boolean, timestamp, integer, jsonb } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 
-export const pastes = pgTable('pastes', {
-  id: varchar('id', { length: 12 }).primaryKey(),
-  title: varchar('title', { length: 255 }),
-  language: varchar('language', { length: 50 }).default('text').notNull(),
-  isEncrypted: boolean('is_encrypted').default(false).notNull(),
-  encryptionIv: varchar('encryption_iv', { length: 64 }),
-  encryptionSalt: varchar('encryption_salt', { length: 64 }),
-  burnAfter: boolean('burn_after').default(false).notNull(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }),
-  viewCount: integer('view_count').default(0).notNull(),
-  sizeBytes: integer('size_bytes').notNull(),
-  r2Key: varchar('r2_key', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  ipHash: varchar('ip_hash', { length: 64 }),
-  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
-})
+export const pastes = sqliteTable(
+  'pastes',
+  {
+    id: text('id').primaryKey(),
+    title: text('title'),
+    language: text('language').default('text').notNull(),
+    isEncrypted: integer('is_encrypted', { mode: 'boolean' }).default(false).notNull(),
+    encryptionIv: text('encryption_iv'),
+    encryptionSalt: text('encryption_salt'),
+    burnAfter: integer('burn_after', { mode: 'boolean' }).default(false).notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+    viewCount: integer('view_count').default(0).notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    r2Key: text('r2_key').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+    ipHash: text('ip_hash'),
+    metadata: text('metadata', { mode: 'json' }).$type<Record<string, unknown>>(),
+  },
+  (table) => [index('pastes_expires_at_idx').on(table.expiresAt)]
+)
 
 export type Paste = typeof pastes.$inferSelect
 export type NewPaste = typeof pastes.$inferInsert

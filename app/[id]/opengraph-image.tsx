@@ -1,7 +1,5 @@
 import { ImageResponse } from 'next/og'
-import { getPasteMetadata } from '@/server/services/paste.service'
-
-export const runtime = 'edge'
+import { readPasteMetadata } from '@/server/services/paste.service'
 
 export const alt = 'Bin 21 Paste'
 export const size = { width: 1200, height: 630 }
@@ -15,7 +13,7 @@ function formatSize(bytes: number): string {
 
 export default async function OGImage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const paste = await getPasteMetadata(id)
+  const paste = await readPasteMetadata(id)
 
   if (!paste) {
     return new ImageResponse(

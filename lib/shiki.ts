@@ -1,7 +1,5 @@
 import { createHighlighter, type Highlighter } from 'shiki'
 
-let highlighterInstance: Highlighter | null = null
-
 const CORE_LANGUAGES = [
   'javascript', 'typescript', 'python', 'html', 'css', 'json', 'markdown',
   'bash', 'sql', 'tsx', 'jsx',
@@ -19,14 +17,43 @@ export type ShikiThemeId = (typeof SHIKI_THEMES)[number]['id']
 
 const ALL_THEME_IDS = SHIKI_THEMES.map((t) => t.id)
 
-export async function getHighlighter(): Promise<Highlighter> {
-  if (!highlighterInstance) {
-    highlighterInstance = await createHighlighter({
-      themes: ALL_THEME_IDS,
-      langs: CORE_LANGUAGES,
-    })
+/**
+ * Upper bound on languages kept resident.
+ *
+ * Grammars are large and Shiki never evicts them, so an unbounded highlighter
+ * grows with the variety of languages ever pasted: measured at ~146MB RSS fresh
+ * and ~265MB once ~100 grammars had accumulated. Past this cap we dispose the
+ * highlighter and start over from the core set, trading a rare rebuild for a
+ * bounded footprint.
+ *
+ * Loading one language can pull in several more (embedded grammars), so this
+ * counts everything actually resident, not just explicit requests.
+ */
+const MAX_RESIDENT_LANGUAGES = 32
+
+// Cache the promise, not the instance, so concurrent callers share one build
+// instead of each creating a highlighter.
+let highlighterPromise: Promise<Highlighter> | null = null
+
+function build(): Promise<Highlighter> {
+  return createHighlighter({ themes: ALL_THEME_IDS, langs: CORE_LANGUAGES })
+}
+
+export function getHighlighter(): Promise<Highlighter> {
+  if (!highlighterPromise) {
+    highlighterPromise = build()
   }
-  return highlighterInstance
+  return highlighterPromise
+}
+
+async function recycleIfOversized(highlighter: Highlighter): Promise<Highlighter> {
+  if (highlighter.getLoadedLanguages().length <= MAX_RESIDENT_LANGUAGES) {
+    return highlighter
+  }
+
+  highlighter.dispose()
+  highlighterPromise = build()
+  return highlighterPromise
 }
 
 export async function highlightCode(
@@ -34,7 +61,7 @@ export async function highlightCode(
   language: string,
   theme: ShikiThemeId = 'github-dark'
 ): Promise<string> {
-  const highlighter = await getHighlighter()
+  let highlighter = await getHighlighter()
 
   // Load language on demand if not already loaded
   if (!highlighter.getLoadedLanguages().includes(language)) {
@@ -45,9 +72,11 @@ export async function highlightCode(
     }
   }
 
-  const lang = highlighter.getLoadedLanguages().includes(language)
-    ? language
-    : 'text'
+  const lang = highlighter.getLoadedLanguages().includes(language) ? language : 'text'
+  const html = highlighter.codeToHtml(code, { lang, theme })
 
-  return highlighter.codeToHtml(code, { lang, theme })
+  // Recycle after rendering so this request still uses the grammar it loaded.
+  highlighter = await recycleIfOversized(highlighter)
+
+  return html
 }
