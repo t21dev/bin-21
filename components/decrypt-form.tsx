@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface DecryptFormProps {
   encryptedContent: string
@@ -13,6 +13,16 @@ export function DecryptForm({ encryptedContent, iv, salt, onDecrypted }: Decrypt
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Cache Components hides a route with React <Activity> instead of unmounting
+  // it, so the typed password would otherwise sit in memory and be restored on
+  // back-navigation. Drop it as soon as the route is hidden.
+  useEffect(() => {
+    return () => {
+      setPassword('')
+      setError('')
+    }
+  }, [])
 
   async function handleDecrypt() {
     if (!password) return

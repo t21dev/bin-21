@@ -23,6 +23,15 @@
   --color-light-surface: #FFFFFF;
   --color-light-border: #E2E8F0;
 
+  /* shadcn-compatible aliases. The vendored chart primitive in
+     components/ui/recharts-chart.tsx is written against shadcn token names;
+     mapping them onto Bin 21's tokens keeps one palette instead of two. */
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-muted-foreground: var(--text-muted);
+  --color-border: var(--border);
+  --color-card: var(--surface);
+
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Menlo', 'Monaco', monospace;
 

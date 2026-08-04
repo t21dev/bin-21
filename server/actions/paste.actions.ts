@@ -3,7 +3,7 @@
 import { z } from 'zod'
 import { LANGUAGE_IDS } from '@/lib/languages'
 import * as pasteService from '@/server/services/paste.service'
-import type { ActionResult, PasteWithContent } from '@/types'
+import type { ActionResult } from '@/types'
 
 const createPasteSchema = z.object({
   content: z.string().min(1, 'Content is required').max(2_000_000, 'Content too large (max 2 million characters)'),
@@ -61,18 +61,5 @@ export async function createPaste(
     }
     console.error('Failed to create paste:', error)
     return { success: false, error: 'Failed to create paste' }
-  }
-}
-
-export async function getPaste(id: string): Promise<ActionResult<PasteWithContent>> {
-  try {
-    const paste = await pasteService.getPaste(id)
-    if (!paste) {
-      return { success: false, error: 'Paste not found' }
-    }
-    return { success: true, data: paste }
-  } catch (error) {
-    console.error('Failed to get paste:', error)
-    return { success: false, error: 'Failed to retrieve paste' }
   }
 }

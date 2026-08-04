@@ -49,6 +49,7 @@ export function PasteForm() {
     control,
     watch,
     setValue,
+    reset,
     clearErrors,
     formState: { errors },
   } = useForm<PasteFormValues>({
@@ -177,6 +178,13 @@ export function PasteForm() {
         })
 
         if (result.success && result.data) {
+          // Cache Components keeps this route mounted (React <Activity>) instead
+          // of unmounting it, so navigating back would otherwise redisplay the
+          // paste — including the encryption password. Clear it explicitly.
+          reset()
+          setShowPreview(false)
+          setPreviewHtml('')
+          setServerError('')
           router.push(`/${result.data.id}`)
         } else {
           setServerError(result.error || 'Failed to create paste')

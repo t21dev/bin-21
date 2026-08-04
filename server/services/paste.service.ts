@@ -5,6 +5,19 @@ import { generatePasteId } from '@/lib/id'
 import { uploadContent, getContent, deleteContent } from './storage.service'
 import type { CreatePasteInput, PasteWithContent, PasteMetadata } from '@/types'
 
+// ---------------------------------------------------------------------------
+// Reads and writes are deliberately separated.
+//
+// Rendering a paste page must never mutate, because under Cache Components a
+// page body, its generateMetadata, and a prefetched shell can each render in
+// their own scope. If the view-count increment lived in the read path, those
+// scopes would each apply it — double-counting views and destroying
+// burn-after-read pastes before the recipient ever saw them.
+//
+// So: read* functions are pure. recordView() is the single mutation, and the
+// page calls it exactly once at request time.
+// ---------------------------------------------------------------------------
+
 function computeExpiresAt(expiresIn: string): Date | null {
   const now = new Date()
   switch (expiresIn) {
@@ -15,6 +28,10 @@ function computeExpiresAt(expiresIn: string): Date | null {
     case '1M': return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
     default: return null
   }
+}
+
+function isExpired(expiresAt: Date | null): boolean {
+  return expiresAt !== null && new Date() > expiresAt
 }
 
 export async function createPaste(
@@ -47,33 +64,18 @@ export async function createPaste(
   return { id }
 }
 
-export async function getPaste(id: string): Promise<PasteWithContent | null> {
-  const [paste] = await db
-    .select()
-    .from(pastes)
-    .where(eq(pastes.id, id))
-    .limit(1)
+// --- Reads (pure) ----------------------------------------------------------
 
-  if (!paste) return null
+/**
+ * Reads a paste and its content. Never mutates. Expired pastes read as absent;
+ * reclaiming their storage is the janitor's job (see cleanupExpiredPastes).
+ */
+export async function readPaste(id: string): Promise<PasteWithContent | null> {
+  const [paste] = await db.select().from(pastes).where(eq(pastes.id, id)).limit(1)
 
-  // Check expiration
-  if (paste.expiresAt && new Date() > paste.expiresAt) {
-    await deletePaste(id, paste.r2Key)
-    return null
-  }
+  if (!paste || isExpired(paste.expiresAt)) return null
 
   const content = await getContent(paste.r2Key)
-
-  // Increment view count
-  await db
-    .update(pastes)
-    .set({ viewCount: sql`${pastes.viewCount} + 1` })
-    .where(eq(pastes.id, id))
-
-  // If burn after reading, delete after 2 views (creator redirect + recipient)
-  if (paste.burnAfter && paste.viewCount + 1 >= 2) {
-    await deletePaste(id, paste.r2Key)
-  }
 
   return {
     id: paste.id,
@@ -84,7 +86,7 @@ export async function getPaste(id: string): Promise<PasteWithContent | null> {
     encryptionSalt: paste.encryptionSalt,
     burnAfter: paste.burnAfter,
     expiresAt: paste.expiresAt,
-    viewCount: paste.viewCount + 1,
+    viewCount: paste.viewCount,
     sizeBytes: paste.sizeBytes,
     createdAt: paste.createdAt,
     metadata: paste.metadata,
@@ -92,19 +94,11 @@ export async function getPaste(id: string): Promise<PasteWithContent | null> {
   }
 }
 
-export async function getPasteMetadata(id: string): Promise<PasteMetadata | null> {
-  const [paste] = await db
-    .select()
-    .from(pastes)
-    .where(eq(pastes.id, id))
-    .limit(1)
+/** Metadata only — no R2 fetch, no mutation. Used by generateMetadata and OG images. */
+export async function readPasteMetadata(id: string): Promise<PasteMetadata | null> {
+  const [paste] = await db.select().from(pastes).where(eq(pastes.id, id)).limit(1)
 
-  if (!paste) return null
-
-  if (paste.expiresAt && new Date() > paste.expiresAt) {
-    await deletePaste(id, paste.r2Key)
-    return null
-  }
+  if (!paste || isExpired(paste.expiresAt)) return null
 
   return {
     id: paste.id,
@@ -129,13 +123,48 @@ export async function getRawContent(id: string): Promise<string | null> {
     .where(eq(pastes.id, id))
     .limit(1)
 
-  if (!paste) return null
-
-  if (paste.expiresAt && new Date() > paste.expiresAt) {
-    return null
-  }
+  if (!paste || isExpired(paste.expiresAt)) return null
 
   return getContent(paste.r2Key)
+}
+
+// --- Writes ----------------------------------------------------------------
+
+/**
+ * Records exactly one view. Must only be called at request time, once per real
+ * page view — never from generateMetadata, a prerender, or a prefetch.
+ *
+ * Burn-after-read deletes on the 2nd view: the creator's own post-create
+ * redirect is view 1, the recipient is view 2.
+ */
+export async function recordView(id: string): Promise<void> {
+  const [paste] = await db
+    .select({
+      r2Key: pastes.r2Key,
+      burnAfter: pastes.burnAfter,
+      expiresAt: pastes.expiresAt,
+    })
+    .from(pastes)
+    .where(eq(pastes.id, id))
+    .limit(1)
+
+  if (!paste) return
+
+  // Atomic increment; returns the post-increment value so two concurrent
+  // viewers can't both read the same count and under-count the burn.
+  const [updated] = await db
+    .update(pastes)
+    .set({ viewCount: sql`${pastes.viewCount} + 1` })
+    .where(eq(pastes.id, id))
+    .returning({ viewCount: pastes.viewCount })
+
+  if (!updated) return
+
+  if (paste.burnAfter && updated.viewCount >= 2) {
+    await deletePaste(id, paste.r2Key)
+  } else if (isExpired(paste.expiresAt)) {
+    await deletePaste(id, paste.r2Key)
+  }
 }
 
 async function deletePaste(id: string, r2Key: string): Promise<void> {
@@ -143,16 +172,17 @@ async function deletePaste(id: string, r2Key: string): Promise<void> {
   await db.delete(pastes).where(eq(pastes.id, id))
 }
 
+/**
+ * Reclaims storage for pastes past their expiry. Expired pastes already read as
+ * absent; this is what actually removes the row and the R2 object, so it must
+ * run on a schedule (see lib/janitor.ts) rather than only when someone happens
+ * to visit an expired paste.
+ */
 export async function cleanupExpiredPastes(): Promise<number> {
   const expired = await db
     .select({ id: pastes.id, r2Key: pastes.r2Key })
     .from(pastes)
-    .where(
-      and(
-        isNotNull(pastes.expiresAt),
-        lt(pastes.expiresAt, new Date())
-      )
-    )
+    .where(and(isNotNull(pastes.expiresAt), lt(pastes.expiresAt, new Date())))
     .limit(100)
 
   for (const paste of expired) {

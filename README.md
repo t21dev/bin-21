@@ -27,24 +27,26 @@
 - **Zero Authentication** - No account, no email, no friction
 - **Dark Mode** - Pure black OLED-optimized dark theme
 - **Bot Protection** - Honeypot fields, time-based detection, JS challenges
-- **Rate Limiting** - Redis-backed sliding window rate limiter
+- **Rate Limiting** - In-memory sliding window rate limiter
+- **Admin Analytics** - Optional `/admin` dashboard (paste/view totals, language mix, size distribution, activity over time). Disabled unless `ADMIN_TOKEN` is set
 - **Open Source** - MIT licensed. Self-host it, fork it, contribute to it
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | [Next.js 16](https://nextjs.org) (App Router, Server Actions) |
+| Framework | [Next.js 16.3](https://nextjs.org) (App Router, Server Actions, Cache Components) |
 | Language | TypeScript 5 (strict mode) |
 | Styling | Tailwind CSS 4 |
-| Database | PostgreSQL 16 via [Drizzle ORM](https://orm.drizzle.team) |
+| Database | SQLite via [Drizzle ORM](https://orm.drizzle.team) + [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) |
 | Object Storage | [Cloudflare R2](https://developers.cloudflare.com/r2/) (S3-compatible) |
 | Syntax Highlighting | [Shiki](https://shiki.style) (150+ languages) |
 | Markdown | [React Markdown](https://github.com/remarkjs/react-markdown) + remark-gfm |
 | Encryption | Web Crypto API (AES-256-GCM + PBKDF2) |
-| Rate Limiting | [ioredis](https://github.com/redis/ioredis) with in-memory fallback |
+| Rate Limiting | In-memory sliding window (single-instance by design) |
+| Charts | [Recharts](https://recharts.org) + [Evil Charts](https://evilcharts.com) (admin analytics) |
 | Validation | [Zod](https://zod.dev) |
-| Deployment | [Railway](https://railway.com) |
+| Deployment | [Railway](https://railway.com) — one service + a volume |
 
 ## Architecture
 
@@ -52,34 +54,42 @@
 bin-21/
   app/                    # Next.js App Router pages
     [id]/                 # View paste page + raw endpoint
+    admin/                # Analytics dashboard (env-gated)
     layout.tsx            # Root layout with theme provider
     page.tsx              # Home / create paste
   server/
     actions/              # Server Actions (entry points, Zod validation)
-    services/             # Core business logic (DB, R2, crypto)
+    services/             # Core business logic (DB, R2, stats)
   lib/
-    db/                   # Drizzle schema + client
-    shiki.ts              # Syntax highlighter
+    db/                   # Drizzle schema, SQLite client, migrations
+    shiki.ts              # Syntax highlighter (bounded language cache)
     languages.ts          # 150+ language definitions
-    rate-limit.ts         # Redis rate limiter
+    rate-limit.ts         # In-memory rate limiter
+    janitor.ts            # Reclaims expired pastes
+    admin-auth.ts         # Admin token verification
     bot-detection.ts      # Bot detection utilities
-  components/             # React components
+  components/
+    ui/                   # Vendored chart primitives
+    admin/                # Analytics dashboard components
   types/                  # Shared TypeScript types
-  proxy.ts                # Next.js 16 proxy (rate limiting)
+  instrumentation.ts      # Server startup hook (starts the janitor)
+  proxy.ts                # Next.js 16 proxy (rate limiting, admin gate)
 ```
 
-**Data flow:** Client form -> Server Action (validates with Zod) -> Service (uploads content to R2, saves metadata to PostgreSQL) -> Returns paste ID -> Redirect to view page.
+**Data flow:** Client form -> Server Action (validates with Zod) -> Service (uploads content to R2, saves metadata to SQLite) -> Returns paste ID -> Redirect to view page.
 
 Paste content is stored in Cloudflare R2, never in the database. Encrypted pastes use client-side AES-256-GCM - the password never reaches the server.
+
+**Single-instance by design.** The SQLite file lives on a mounted volume, and Railway does not allow replicas on a service with a volume. That is what makes in-memory rate limiting and the in-process janitor correct. The trade-offs: no horizontal scaling, and brief downtime on redeploy.
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 20+
-- PostgreSQL 16
-- Redis (optional, falls back to in-memory)
 - Cloudflare R2 bucket
+
+No database server to run — SQLite is a file, created automatically on first boot.
 
 ### Setup
 
@@ -93,23 +103,24 @@ cp .env.example .env
 Edit `.env` with your credentials:
 
 ```env
-DATABASE_URL=postgresql://user:pass@host:5432/bin21
+# Optional locally — defaults to ./.data/bin21.db
+DATABASE_PATH=./.data/bin21.db
 R2_ACCOUNT_ID=your-account-id
 R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-key
 R2_BUCKET_NAME=bin21-pastes
-REDIS_URL=redis://localhost:6379
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-Push the database schema and start the dev server:
+Start the dev server — migrations run automatically on boot:
 
 ```bash
-npm run db:push
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+> Leave `JANITOR_ENABLED` unset locally. It deletes expired pastes **and their R2 objects**, so a dev machine pointed at a production bucket would reclaim live storage.
 
 ### Commands
 
@@ -130,11 +141,13 @@ npm run db:studio    # Open Drizzle Studio
 ### Railway (Recommended)
 
 1. Create a new project on [Railway](https://railway.com)
-2. Add a PostgreSQL database
-3. Add a Redis instance
-4. Connect your GitHub repo
-5. Set environment variables from `.env.example`
+2. Connect your GitHub repo
+3. Attach a **volume** to the service, mounted at `/data`
+4. Set environment variables from `.env.example` — in particular `DATABASE_PATH=/data/bin21.db` and `JANITOR_ENABLED=true`
+5. Enable **automated volume backups**. The volume is now the only copy of your paste metadata; there is no managed database to fall back on
 6. Deploy
+
+No database or cache service is needed — one service plus a volume.
 
 ### Docker
 

@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# local sqlite database (production lives on the Railway volume at /data)
+/.data/
+
 # next.js
 /.next/
 /out/
