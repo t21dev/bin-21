@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { dirname, isAbsolute } from 'node:path'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
@@ -13,15 +13,37 @@ function createDb(): Db {
   // Railway mounts a volume at /data; locally the DB lives in .data/ (gitignored).
   // Kept as a bare relative/absolute string — passing it through path.resolve()
   // makes Turbopack trace the whole project into the server output.
-  const file = process.env.DATABASE_PATH || './.data/bin21.db'
+  const configured = process.env.DATABASE_PATH
+  const file = configured || './.data/bin21.db'
+  const dir = dirname(file)
+  const isProd = process.env.NODE_ENV === 'production'
 
-  // Local dev only: create the parent directory. On Railway the volume mount
-  // already provides it.
-  if (process.env.NODE_ENV !== 'production') {
-    const dir = dirname(file)
-    if (!existsSync(/* turbopackIgnore: true */ dir)) {
-      mkdirSync(/* turbopackIgnore: true */ dir, { recursive: true })
+  if (isProd) {
+    // A relative path in production is always wrong: it resolves inside the
+    // container's writable layer, which is discarded on redeploy. Volume mounts
+    // are absolute. Catch this even if the directory happens to exist.
+    if (!isAbsolute(file)) {
+      throw new Error(
+        `DATABASE_PATH is "${file}", a relative path. In production it must be an ` +
+          `absolute path on a mounted volume (e.g. /data/bin21.db).\n` +
+          `A relative path resolves inside the container's ephemeral filesystem, ` +
+          `so every paste would be lost on the next redeploy.`
+      )
     }
+
+    // Deliberately do NOT create the directory. If DATABASE_PATH points somewhere
+    // unmounted, silently creating a database there would "work" — and then lose
+    // every paste on the next redeploy. Fail loudly with the actual cause.
+    if (!existsSync(/* turbopackIgnore: true */ dir)) {
+      throw new Error(
+        `Cannot open the SQLite database: directory "${dir}" does not exist.\n` +
+          `DATABASE_PATH is "${file}". Check that a volume is mounted at "${dir}".\n` +
+          `Refusing to create it — data written to a non-persistent path is lost on redeploy.`
+      )
+    }
+  } else if (!existsSync(/* turbopackIgnore: true */ dir)) {
+    // Local dev: a throwaway directory is fine to create.
+    mkdirSync(/* turbopackIgnore: true */ dir, { recursive: true })
   }
 
   const sqlite = new Database(file)

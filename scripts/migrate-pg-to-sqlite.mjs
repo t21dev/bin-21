@@ -15,6 +15,8 @@
  *
  * Idempotent: re-running upserts by primary key. Safe to retry.
  */
+import { existsSync } from 'node:fs'
+import { dirname, isAbsolute } from 'node:path'
 import Database from 'better-sqlite3'
 import postgres from 'postgres'
 
@@ -47,6 +49,29 @@ try {
     console.log(rows[0])
     await sql.end()
     process.exit(0)
+  }
+
+  const dir = dirname(DB_PATH)
+  if (!isAbsolute(DB_PATH) && process.env.NODE_ENV === 'production') {
+    console.error(
+      `\nDATABASE_PATH is "${DB_PATH}", a relative path. It must be absolute and on ` +
+        `a mounted volume (e.g. /data/bin21.db) — a relative path resolves inside the ` +
+        `container's ephemeral filesystem.`
+    )
+    await sql.end()
+    process.exit(1)
+  }
+  if (!existsSync(dir)) {
+    console.error(
+      `\nDirectory "${dir}" does not exist, so ${DB_PATH} cannot be opened.\n` +
+        (process.env.DATABASE_PATH
+          ? `DATABASE_PATH is "${process.env.DATABASE_PATH}" — is a volume mounted at "${dir}"?`
+          : `DATABASE_PATH is not set, so it defaulted to "${DB_PATH}".\n` +
+            `Set it to the database on your mounted volume, e.g.:\n` +
+            `  DATABASE_PATH=/data/bin21.db node scripts/migrate-pg-to-sqlite.mjs`)
+    )
+    await sql.end()
+    process.exit(1)
   }
 
   const db = new Database(DB_PATH)
