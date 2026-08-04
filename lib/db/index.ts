@@ -51,6 +51,18 @@ function getDb(): Db {
   return _db
 }
 
+/**
+ * Opens the database and applies migrations immediately.
+ *
+ * Called from instrumentation.ts at server startup. Without this the connection
+ * is only made on the first request that touches the DB, so a freshly deployed
+ * instance would have no schema on its volume until someone happened to view a
+ * paste — which makes a deploy-then-import sequence impossible to reason about.
+ */
+export function initDb(): void {
+  getDb()
+}
+
 export const db = new Proxy({} as Db, {
   get(_target, prop: string | symbol) {
     return (getDb() as unknown as Record<string | symbol, unknown>)[prop]
