@@ -117,3 +117,7 @@ export function getLanguageById(id: string): Language | undefined {
 export function getLanguageName(id: string): string {
   return getLanguageById(id)?.name ?? id
 }
+
+export function getLanguageExtension(id: string): string {
+  return getLanguageById(id)?.extension ?? '.txt'
+}

@@ -5,7 +5,7 @@ import { DecryptForm } from './decrypt-form'
 import { MarkdownPreview } from './markdown-preview'
 import { ThemeSelector } from './theme-selector'
 import { highlightAction } from '@/server/actions/highlight.actions'
-import { getLanguageName } from '@/lib/languages'
+import { getLanguageName, getLanguageExtension } from '@/lib/languages'
 import { formatBytes, formatRelativeTime } from '@/lib/utils'
 import type { PasteWithContent } from '@/types'
 import type { ShikiThemeId } from '@/lib/shiki'
@@ -74,6 +74,26 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
     setTimeout(() => setCopied(false), 2000)
   }
 
+  function handleDownload() {
+    const slug =
+      (paste.title || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 60) || paste.id
+
+    const blob = new Blob([displayContent], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${slug}${getLanguageExtension(paste.language)}`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
   async function handleShare() {
     const url = window.location.href
     const shareData = {
@@ -140,11 +160,11 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-1 gap-2 sm:flex-none">
+          <div className="grid flex-1 grid-cols-2 gap-2 sm:flex sm:flex-none">
             <button
               onClick={handleShare}
               aria-label="Copy share URL"
-              className="flex h-10 min-w-[44px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary sm:flex-none"
+              className="flex h-10 min-w-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary sm:flex-none"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <circle cx="18" cy="5" r="3" />
@@ -159,7 +179,7 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
               onClick={handleCopy}
               disabled={needsDecryption}
               aria-label="Copy paste content"
-              className="flex h-10 min-w-[44px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+              className="flex h-10 min-w-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
             >
               {copied ? (
                 <>
@@ -181,10 +201,23 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
             <a
               href={`/${paste.id}/raw`}
               aria-label="View raw paste content"
-              className="flex h-10 min-w-[44px] flex-1 cursor-pointer items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary sm:flex-none"
+              className="flex h-10 min-w-[44px] cursor-pointer items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary sm:flex-none"
             >
               Raw
             </a>
+            <button
+              onClick={handleDownload}
+              disabled={needsDecryption}
+              aria-label="Download paste content"
+              className="flex h-10 min-w-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download
+            </button>
           </div>
           {showThemeSelector && (
             <div className="sm:ml-auto">
