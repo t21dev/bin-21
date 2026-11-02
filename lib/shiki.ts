@@ -1,20 +1,16 @@
 import { createHighlighter, type Highlighter } from 'shiki'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
+import { createHash } from 'node:crypto'
+import { ByteLRU } from './lru'
+import { SHIKI_THEMES, type ShikiThemeId } from './shiki-themes'
+
+// Server-only module. Client code imports the theme list from ./shiki-themes.
+export { SHIKI_THEMES, type ShikiThemeId }
 
 const CORE_LANGUAGES = [
   'javascript', 'typescript', 'python', 'html', 'css', 'json', 'markdown',
   'bash', 'sql', 'tsx', 'jsx',
 ]
-
-export const SHIKI_THEMES = [
-  { id: 'github-dark', name: 'GitHub Dark' },
-  { id: 'github-light', name: 'GitHub Light' },
-  { id: 'dracula', name: 'Dracula' },
-  { id: 'one-dark-pro', name: 'One Dark Pro' },
-  { id: 'nord', name: 'Nord' },
-] as const
-
-export type ShikiThemeId = (typeof SHIKI_THEMES)[number]['id']
 
 const ALL_THEME_IDS = SHIKI_THEMES.map((t) => t.id)
 
@@ -93,5 +89,25 @@ export async function highlightCode(
   // Recycle after rendering so this request still uses the grammar it loaded.
   highlighter = await recycleIfOversized(highlighter)
 
+  return html
+}
+
+/**
+ * Highlighted HTML for recently viewed code, keyed by a hash of the code (the
+ * cache never holds the source itself). Popular pastes and theme switches skip
+ * re-tokenizing. Capped at 4MB so it can't undo the memory work above.
+ */
+const htmlCache = new ByteLRU(4 * 1024 * 1024)
+
+export async function highlightCodeCached(
+  code: string,
+  language: string,
+  theme: ShikiThemeId = 'github-dark'
+): Promise<string> {
+  const key = `${theme}:${language}:${createHash('sha1').update(code).digest('base64url')}`
+  const hit = htmlCache.get(key)
+  if (hit !== undefined) return hit
+  const html = await highlightCode(code, language, theme)
+  htmlCache.set(key, html)
   return html
 }

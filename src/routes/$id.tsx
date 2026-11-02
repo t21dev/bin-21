@@ -42,7 +42,7 @@ export const Route = createFileRoute('/$id')({
     }
   },
   pendingComponent: () => (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-6xl px-4 pt-4 pb-6 md:py-6">
       <PasteSkeleton />
     </div>
   ),
@@ -53,7 +53,7 @@ export const Route = createFileRoute('/$id')({
 function PastePage() {
   const { paste, highlightedHtml } = Route.useLoaderData()
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-6xl px-4 pt-4 md:py-6">
       <PasteViewer key={paste.id} paste={paste} highlightedHtml={highlightedHtml} />
     </div>
   )

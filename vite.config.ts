@@ -32,6 +32,15 @@ export default defineConfig(({ mode }) => {
         // - better-sqlite3 is a native addon; @vercel/og reads its font and
         //   wasm files from its own package directory.
         traceDeps: ['shiki*', 'better-sqlite3*', '@vercel/og*'],
+        // Hashed /assets/* are already immutable for a year. Unhashed public
+        // files get explicit rules: icons are stable, the service worker must
+        // revalidate so updates reach browsers.
+        routeRules: {
+          '/icons/**': { headers: { 'cache-control': 'public, max-age=604800' } },
+          '/icon.svg': { headers: { 'cache-control': 'public, max-age=604800' } },
+          '/llms.txt': { headers: { 'cache-control': 'public, max-age=86400' } },
+          '/sw.js': { headers: { 'cache-control': 'no-cache' } },
+        },
       }),
       // React's plugin must come after Start's.
       viteReact(),

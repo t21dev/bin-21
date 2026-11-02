@@ -7,11 +7,11 @@ export const Route = createFileRoute('/')({
 
 function HomePage() {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
-      <div className="mb-5 sm:mb-6">
-        <h1 className="text-xl font-bold sm:text-2xl">New Paste</h1>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Share code and text instantly. No account required.
+    <div className="mx-auto max-w-6xl px-4 pt-4 md:py-6">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h1 className="text-lg font-semibold tracking-tight md:text-xl">New paste</h1>
+        <p className="text-[13px] text-[var(--text-faint)]">
+          No account. Encrypted in your browser if you want it.
         </p>
       </div>
       <PasteForm />

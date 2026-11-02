@@ -1,34 +1,25 @@
-'use client'
-
-import { SHIKI_THEMES, type ShikiThemeId } from '@/lib/shiki'
+import { ChevronDown, Palette } from 'lucide-react'
+import { SHIKI_THEMES, type ShikiThemeId } from '@/lib/shiki-themes'
 
 interface ThemeSelectorProps {
   value: ShikiThemeId
   onChange: (theme: ShikiThemeId) => void
+  id?: string
+  /** Stretch to the container (side panel) instead of sizing to content. */
+  block?: boolean
 }
 
-export function ThemeSelector({ value, onChange }: ThemeSelectorProps) {
+/** Native select (best on phones), dressed to match. */
+export function ThemeSelector({ value, onChange, id = 'theme-select', block = false }: ThemeSelectorProps) {
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <label htmlFor="theme-select" className="text-[var(--text-muted)]">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="inline-block" aria-hidden="true">
-          <circle cx="12" cy="12" r="5" />
-          <line x1="12" y1="1" x2="12" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="23" />
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-          <line x1="1" y1="12" x2="3" y2="12" />
-          <line x1="21" y1="12" x2="23" y2="12" />
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-        </svg>
-        <span className="sr-only">Theme</span>
-      </label>
+    <div className={`relative items-center ${block ? 'flex w-full' : 'inline-flex w-fit'}`}>
+      <Palette className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-[var(--text-faint)]" aria-hidden="true" />
+      <label htmlFor={id} className="sr-only">Highlight theme</label>
       <select
-        id="theme-select"
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value as ShikiThemeId)}
-        className="cursor-pointer rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm outline-none"
+        className={`${block ? 'h-10 w-full' : 'h-8'} appearance-none rounded-lg border border-[var(--border)] bg-[var(--surface)] pr-7 pl-7 font-mono text-xs text-[var(--text-muted)] outline-none transition-colors hover:border-[var(--text-faint)] focus:border-[var(--accent)]`}
       >
         {SHIKI_THEMES.map((t) => (
           <option key={t.id} value={t.id}>
@@ -36,6 +27,7 @@ export function ThemeSelector({ value, onChange }: ThemeSelectorProps) {
           </option>
         ))}
       </select>
+      <ChevronDown className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-[var(--text-faint)]" aria-hidden="true" />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { ByteLRU } from '@/lib/lru'
 
 let s3Client: S3Client | null = null
 
@@ -30,7 +31,18 @@ export async function uploadContent(key: string, content: string): Promise<void>
   )
 }
 
+/**
+ * Recently read paste bodies. A paste's content never changes after creation,
+ * so a hit is always correct; deleteContent evicts on burn/expiry. Skips an R2
+ * round trip (~100-300ms) for popular pastes. Capped at 4MB of memory, and a
+ * single entry over 1MB is never cached.
+ */
+const contentCache = new ByteLRU(4 * 1024 * 1024, 1024 * 1024)
+
 export async function getContent(key: string): Promise<string> {
+  const cached = contentCache.get(key)
+  if (cached !== undefined) return cached
+
   const client = getS3Client()
   const response = await client.send(
     new GetObjectCommand({
@@ -38,10 +50,13 @@ export async function getContent(key: string): Promise<string> {
       Key: key,
     })
   )
-  return (await response.Body?.transformToString('utf-8')) ?? ''
+  const body = (await response.Body?.transformToString('utf-8')) ?? ''
+  contentCache.set(key, body)
+  return body
 }
 
 export async function deleteContent(key: string): Promise<void> {
+  contentCache.delete(key)
   const client = getS3Client()
   await client.send(
     new DeleteObjectCommand({

@@ -1,14 +1,16 @@
-'use client'
-
 import { useEffect, useState, useRef } from 'react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { Clock, Database, Download, Eye, FileCode2, FileText, Flame, Link2, Lock, Plus, Share2 } from 'lucide-react'
 import { DecryptForm } from './decrypt-form'
 import { MarkdownPreview } from './markdown-preview'
 import { ThemeSelector } from './theme-selector'
+import { CopyButton, Dock, Panel } from './ui-kit'
 import { highlightAction } from '@/server/actions/highlight.actions'
 import { getLanguageName, getLanguageExtension } from '@/lib/languages'
 import { formatBytes, formatRelativeTime } from '@/lib/utils'
+import { absoluteUrl } from '@/lib/seo'
 import type { PasteWithContent } from '@/types'
-import type { ShikiThemeId } from '@/lib/shiki'
+import type { ShikiThemeId } from '@/lib/shiki-themes'
 
 interface PasteViewerProps {
   paste: PasteWithContent
@@ -16,18 +18,39 @@ interface PasteViewerProps {
   initialTheme?: ShikiThemeId
 }
 
+function expiresShort(date: Date | null): string {
+  if (!date) return 'Never'
+  const ms = date.getTime() - Date.now()
+  if (ms <= 0) return 'Now'
+  const m = Math.round(ms / 60000)
+  if (m < 60) return `${m} min`
+  const h = Math.round(m / 60)
+  if (h < 24) return `${h} h`
+  return `${Math.round(h / 24)} d`
+}
+
 export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dark' }: PasteViewerProps) {
   const [decryptedContent, setDecryptedContent] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [shareLabel, setShareLabel] = useState('Share')
   const [theme, setTheme] = useState<ShikiThemeId>(initialTheme)
   const [reHighlightedHtml, setReHighlightedHtml] = useState<string | null>(null)
   const [themeLoading, setThemeLoading] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [shared, setShared] = useState(false)
   const requestId = useRef(0)
+  const navigate = useNavigate()
 
-  // Cache Components hides a route with React <Activity> instead of unmounting
-  // it. Without this, decrypted plaintext would stay in memory after navigating
-  // away and reappear on back-navigation without the password being re-entered.
+  // N starts a new paste (when not typing in a field).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement
+      if (e.key !== 'n' || e.metaKey || e.ctrlKey || e.altKey || el.closest('input, textarea, select, [contenteditable]')) return
+      navigate({ to: '/' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navigate])
+
+  // Drop decrypted plaintext when leaving the page, so it never lingers.
   useEffect(() => {
     return () => {
       setDecryptedContent(null)
@@ -37,7 +60,9 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
 
   const displayContent = decryptedContent ?? paste.content
   const needsDecryption = paste.isEncrypted && !decryptedContent
-  const showThemeSelector = !needsDecryption && paste.language !== 'markdown'
+  const isMarkdown = paste.language === 'markdown'
+  const showThemeSelector = !needsDecryption && !isMarkdown
+  const lines = needsDecryption ? null : displayContent.split('\n').length
 
   const isInitialState = theme === initialTheme && !decryptedContent
   const currentHtml = isInitialState ? (highlightedHtml ?? '') : (reHighlightedHtml ?? '')
@@ -56,22 +81,12 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
     setTheme(newTheme)
     if (newTheme === initialTheme && !decryptedContent) return
     const code = decryptedContent ?? paste.content
-    if (code && paste.language !== 'markdown') {
-      fetchHighlight(code, paste.language, newTheme)
-    }
+    if (code && !isMarkdown) fetchHighlight(code, paste.language, newTheme)
   }
 
   function handleDecrypted(content: string) {
     setDecryptedContent(content)
-    if (paste.language !== 'markdown') {
-      fetchHighlight(content, paste.language, theme)
-    }
-  }
-
-  async function handleCopy() {
-    await navigator.clipboard.writeText(displayContent)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (!isMarkdown) fetchHighlight(content, paste.language, theme)
   }
 
   function handleDownload() {
@@ -96,167 +111,139 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
 
   async function handleShare() {
     const url = window.location.href
-    const shareData = {
-      title: paste.title || 'Untitled Paste',
-      url,
-    }
-
     if (navigator.share) {
       try {
-        await navigator.share(shareData)
+        await navigator.share({ title: paste.title || 'Untitled Paste', url })
         return
       } catch (err) {
-        // User cancelled or share failed — fall back to clipboard
         if (err instanceof Error && err.name === 'AbortError') return
       }
     }
-
     await navigator.clipboard.writeText(url)
-    setShareLabel('Copied URL!')
-    setTimeout(() => setShareLabel('Share'), 2000)
+    setShared(true)
+    setTimeout(() => setShared(false), 1400)
   }
 
+  // Same on server and client, so hydration matches.
+  const shareUrl = absoluteUrl(`/${paste.id}`).replace(/^https?:\/\//, '')
+  const stats = [
+    { icon: <Eye />, label: 'Views', value: String(paste.viewCount) },
+    { icon: <Clock />, label: 'Expires', value: expiresShort(paste.expiresAt) },
+    { icon: <Database />, label: 'Size', value: formatBytes(paste.sizeBytes) },
+  ]
+
   return (
-    <div className="space-y-4 animate-fade-in">
-      {/* Header */}
-      <div className="space-y-3">
-        <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold sm:text-xl">
-            {paste.title || 'Untitled Paste'}
-          </h1>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)] sm:gap-3 sm:text-sm">
-            <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-              {getLanguageName(paste.language)}
-            </span>
-            {paste.createdAt && (
-              <span>{formatRelativeTime(paste.createdAt)}</span>
-            )}
-            <span>{formatBytes(paste.sizeBytes)}</span>
-            <span className="tabular-nums">{paste.viewCount} views</span>
-            {paste.burnAfter && (
-              <span className="inline-flex items-center gap-1 text-warning">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 23c-3.6 0-8-3.1-8-8.5C4 9 12 1 12 1s8 8 8 14.5c0 5.4-4.4 8.5-8 8.5z"/>
-                </svg>
-                <span className="hidden sm:inline">Burns after reading</span>
-                <span className="sm:hidden">Burns</span>
-              </span>
-            )}
-            {paste.isEncrypted && (
-              <span className="inline-flex items-center gap-1 text-accent">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                Encrypted
-              </span>
-            )}
-            {paste.expiresAt && (
-              <span className="text-muted">
-                Expires {formatRelativeTime(paste.expiresAt)}
-              </span>
-            )}
-          </div>
+    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_288px] md:items-start">
+      {/* ---------- Content card ---------- */}
+      <section className="card vt-card flex min-w-0 flex-col overflow-hidden">
+        <header className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2.5">
+          <FileCode2 className="h-4 w-4 shrink-0 text-[var(--text-faint)]" />
+          <h1 className="min-w-0 flex-1 truncate text-sm font-medium">{paste.title || 'Untitled paste'}</h1>
+          {paste.isEncrypted && <span className="chip"><Lock />Encrypted</span>}
+          {paste.burnAfter && <span className="chip chip-warn"><Flame /><span className="hidden sm:inline">Burns after reading</span></span>}
+          <span className="chip chip-accent">{getLanguageName(paste.language)}</span>
+        </header>
+
+        {/* KPI strip: phones only (the side panel carries these on desktop) */}
+        <div className="grid grid-cols-3 border-b border-[var(--border)] md:hidden">
+          {stats.map((s, i) => (
+            <div key={s.label} className={`grid gap-px px-3 py-2 ${i > 0 ? 'border-l border-[var(--border)]' : ''}`}>
+              <small className="flex items-center gap-1.5 text-[11px] text-[var(--text-faint)] [&>svg]:h-3 [&>svg]:w-3">{s.icon}{s.label}</small>
+              <b className="truncate text-sm font-medium tabular-nums">{s.value}</b>
+            </div>
+          ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="grid flex-1 grid-cols-2 gap-2 sm:flex sm:flex-none">
-            <button
-              onClick={handleShare}
-              aria-label="Copy share URL"
-              className="flex h-10 min-w-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary sm:flex-none"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-              </svg>
-              {shareLabel}
-            </button>
-            <button
-              onClick={handleCopy}
-              disabled={needsDecryption}
-              aria-label="Copy paste content"
-              className="flex h-10 min-w-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
-            >
-              {copied ? (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-success" aria-hidden="true">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </svg>
-                  Copy
-                </>
-              )}
-            </button>
-            <a
-              href={`/${paste.id}/raw`}
-              aria-label="View raw paste content"
-              className="flex h-10 min-w-[44px] cursor-pointer items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary sm:flex-none"
-            >
-              Raw
-            </a>
-            <button
-              onClick={handleDownload}
-              disabled={needsDecryption}
-              aria-label="Download paste content"
-              className="flex h-10 min-w-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Download
-            </button>
-          </div>
-          {showThemeSelector && (
-            <div className="sm:ml-auto">
-              <ThemeSelector value={theme} onChange={handleThemeChange} />
+        <div className="relative flex min-h-[260px] flex-1 flex-col">
+          {needsDecryption ? (
+            <DecryptForm encryptedContent={paste.content} iv={paste.encryptionIv!} salt={paste.encryptionSalt!} onDecrypted={handleDecrypted} />
+          ) : isMarkdown ? (
+            <div className="p-3 sm:p-4"><MarkdownPreview content={displayContent} /></div>
+          ) : currentHtml ? (
+            <div className={`animate-fade-in transition-opacity duration-200 ${themeLoading ? 'opacity-50' : ''}`} dangerouslySetInnerHTML={{ __html: currentHtml }} />
+          ) : themeLoading ? (
+            <div className="grid gap-2.5 p-4" aria-label="Highlighting">
+              {[72, 48, 86, 60, 38, 78].map((w, i) => <div key={i} className="skel h-3.5" style={{ width: `${w}%` }} />)}
             </div>
+          ) : (
+            <pre className="overflow-x-auto p-4 font-mono text-[13px] leading-[1.75] max-md:whitespace-pre-wrap"><code>{displayContent}</code></pre>
           )}
         </div>
-      </div>
 
-      {/* Content */}
-      {needsDecryption ? (
-        <DecryptForm
-          encryptedContent={paste.content}
-          iv={paste.encryptionIv!}
-          salt={paste.encryptionSalt!}
-          onDecrypted={handleDecrypted}
-        />
-      ) : paste.language === 'markdown' && !paste.isEncrypted ? (
-        <MarkdownPreview content={displayContent} />
-      ) : themeLoading ? (
-        <div className="flex min-h-[200px] items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            Applying theme...
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] px-3 py-2 font-mono text-[11.5px] text-[var(--text-faint)] tabular-nums">
+          <span>{lines !== null ? `${lines} ${lines === 1 ? 'line' : 'lines'} · ` : ''}{formatBytes(paste.sizeBytes)}</span>
+          <span>Created {formatRelativeTime(paste.createdAt)}</span>
+        </footer>
+      </section>
+
+      {/* ---------- Side panel (desktop) / share sheet (phones) ---------- */}
+      <Panel open={sheetOpen} onClose={() => setSheetOpen(false)} label="Paste details">
+        <div className="grid gap-2">
+          <span className="field-label"><Link2 />Share link</span>
+          <div className="flex overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]">
+            <code className="min-w-0 flex-1 truncate px-3 py-2.5 font-mono text-xs text-[var(--text-muted)]">{shareUrl}</code>
+            <CopyButton
+              label="Copy share link"
+              text={() => window.location.href}
+              className="grid w-11 place-items-center border-l border-[var(--border)] bg-[var(--accent-wash)] text-[var(--accent-text)] transition-colors hover:bg-[color-mix(in_oklch,var(--accent)_22%,transparent)]"
+            />
           </div>
         </div>
-      ) : currentHtml ? (
-        <div
-          className="overflow-x-auto rounded-lg border border-[var(--border)]"
-          dangerouslySetInnerHTML={{ __html: currentHtml }}
-        />
-      ) : (
-        <pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 font-mono text-sm leading-relaxed">
-          <code>{displayContent}</code>
-        </pre>
-      )}
+
+        <div className="hidden grid-cols-3 gap-2 md:grid">
+          {stats.map((s) => (
+            <div key={s.label} className="grid min-w-0 gap-0.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2">
+              <small className="flex items-center gap-1 text-[11px] text-[var(--text-faint)] [&>svg]:h-3 [&>svg]:w-3">{s.icon}{s.label}</small>
+              <b className="truncate text-[15px] font-medium tabular-nums">{s.value}</b>
+            </div>
+          ))}
+        </div>
+
+        {showThemeSelector && (
+          <div className="grid gap-2">
+            <span className="field-label">Highlight theme</span>
+            <ThemeSelector id="viewer-theme" block value={theme} onChange={handleThemeChange} />
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-2">
+          <a href={`/${paste.id}/raw`} className="btn h-auto flex-col gap-1 py-2.5 text-xs text-[var(--text-muted)] [&>svg]:text-[var(--text)]" aria-label="View raw paste content">
+            <FileText />Raw
+          </a>
+          <CopyButton label="Copy paste content" text={() => displayContent} disabled={needsDecryption} className="btn h-auto flex-col gap-1 py-2.5 text-xs text-[var(--text-muted)]">
+            Copy
+          </CopyButton>
+          <button type="button" onClick={handleDownload} disabled={needsDecryption} className="btn h-auto flex-col gap-1 py-2.5 text-xs text-[var(--text-muted)] [&>svg]:text-[var(--text)]" aria-label="Download paste content">
+            <Download />Download
+          </button>
+        </div>
+
+        {paste.burnAfter && (
+          <p className="flex items-start gap-2 rounded-[10px] border border-dashed border-[var(--border)] px-3 py-2.5 text-[13px] text-[var(--text-muted)]">
+            <Flame className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />
+            This paste is deleted after it has been opened once more. Share the link with one person.
+          </p>
+        )}
+
+        <button type="button" onClick={handleShare} className="btn min-h-11 w-full md:hidden" data-done={shared}>
+          <Share2 />{shared ? 'Link copied' : 'Share via…'}
+        </button>
+
+        <Link to="/" className="btn btn-primary hidden min-h-11 w-full md:inline-flex">
+          <Plus />New paste<span className="kbd ml-auto">N</span>
+        </Link>
+      </Panel>
+
+      {/* ---------- Phone dock ---------- */}
+      <Dock>
+        <CopyButton label="Copy paste content" text={() => displayContent} disabled={needsDecryption} className="btn btn-icon" />
+        <a href={`/${paste.id}/raw`} className="btn btn-icon" aria-label="View raw paste content"><FileText /></a>
+        <button type="button" onClick={handleDownload} disabled={needsDecryption} className="btn btn-icon" aria-label="Download paste content"><Download /></button>
+        <button type="button" onClick={() => setSheetOpen(true)} className="btn flex-1" aria-label="Share and details">
+          <Share2 />Share
+        </button>
+        <Link to="/" className="btn btn-primary flex-1"><Plus />New</Link>
+      </Dock>
     </div>
   )
 }

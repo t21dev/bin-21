@@ -1,6 +1,5 @@
-'use client'
-
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { KeyRound, LockKeyhole, Unlock } from 'lucide-react'
 
 interface DecryptFormProps {
   encryptedContent: string
@@ -13,10 +12,11 @@ export function DecryptForm({ encryptedContent, iv, salt, onDecrypted }: Decrypt
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [shake, setShake] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  // Cache Components hides a route with React <Activity> instead of unmounting
-  // it, so the typed password would otherwise sit in memory and be restored on
-  // back-navigation. Drop it as soon as the route is hidden.
+  // Drop the typed password when this unmounts (navigating away), so it never
+  // lingers in memory.
   useEffect(() => {
     return () => {
       setPassword('')
@@ -31,14 +31,7 @@ export function DecryptForm({ encryptedContent, iv, salt, onDecrypted }: Decrypt
 
     try {
       const encoder = new TextEncoder()
-
-      const passwordKey = await crypto.subtle.importKey(
-        'raw',
-        encoder.encode(password),
-        'PBKDF2',
-        false,
-        ['deriveKey']
-      )
+      const passwordKey = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey'])
 
       const saltBytes = Uint8Array.from(atob(salt), (c) => c.charCodeAt(0))
       const ivBytes = Uint8Array.from(atob(iv), (c) => c.charCodeAt(0))
@@ -52,52 +45,54 @@ export function DecryptForm({ encryptedContent, iv, salt, onDecrypted }: Decrypt
         ['decrypt']
       )
 
-      const decrypted = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: ivBytes },
-        key,
-        encryptedBytes
-      )
-
-      const decoded = new TextDecoder().decode(decrypted)
-      onDecrypted(decoded)
+      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes }, key, encryptedBytes)
+      onDecrypted(new TextDecoder().decode(decrypted))
     } catch {
-      setError('Incorrect password or corrupted data')
+      setError('That password didn’t work. Check it and try again.')
+      setShake((n) => n + 1)
+      inputRef.current?.select()
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 text-center sm:p-8">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary" aria-hidden="true">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-      </svg>
-      <h2 className="text-lg font-semibold">This paste is encrypted</h2>
-      <p className="text-sm text-[var(--text-muted)]">Enter the password to decrypt and view the content.</p>
-
-      <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row">
-        <label htmlFor="decrypt-password" className="sr-only">Decryption password</label>
-        <input
-          id="decrypt-password"
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleDecrypt()}
-          autoComplete="current-password"
-          className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-primary"
-        />
-        <button
-          onClick={handleDecrypt}
-          disabled={loading || !password}
-          className="h-11 rounded-lg bg-primary px-4 text-sm font-medium text-black transition-colors hover:bg-primary-hover disabled:opacity-50"
-        >
-          {loading ? 'Decrypting...' : 'Decrypt'}
-        </button>
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center">
+      <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--accent-text)]">
+        <LockKeyhole className="h-5 w-5" />
+      </span>
+      <div className="grid gap-1">
+        <h2 className="text-base font-semibold">This paste is encrypted</h2>
+        <p className="text-sm text-[var(--text-muted)]">Enter the password to decrypt it in your browser.</p>
       </div>
-
-      {error && <p className="text-sm text-error">{error}</p>}
+      <form
+        className="flex w-full max-w-sm flex-col gap-2 sm:flex-row"
+        onSubmit={(e) => {
+          e.preventDefault()
+          handleDecrypt()
+        }}
+      >
+        <label htmlFor="decrypt-password" className="sr-only">Decryption password</label>
+        <div key={shake} className={`relative flex-1 ${shake ? 'animate-[shake_320ms_var(--ease-out)]' : ''}`}>
+          <KeyRound className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--text-faint)]" />
+          <input
+            ref={inputRef}
+            id="decrypt-password"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            aria-invalid={!!error}
+            className="input min-h-11 pl-9 text-base sm:text-sm"
+          />
+        </div>
+        <button type="submit" disabled={loading || !password} className="btn btn-primary min-h-11">
+          {loading ? <span className="spinner" aria-hidden="true" /> : <Unlock />}
+          {loading ? 'Decrypting…' : 'Decrypt'}
+        </button>
+      </form>
+      {error && <p role="alert" className="text-sm text-error">{error}</p>}
     </div>
   )
 }

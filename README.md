@@ -11,11 +11,28 @@
 <p align="center">
   <a href="https://github.com/t21dev/bin-21/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-4ADE80?style=flat-square" alt="MIT License"></a>
   <a href="https://github.com/t21dev/bin-21"><img src="https://img.shields.io/github/stars/t21dev/bin-21?style=flat-square&color=4ADE80" alt="Stars"></a>
-  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square" alt="Next.js 16">
+  <img src="https://img.shields.io/badge/TanStack_Start-1.169-black?style=flat-square" alt="TanStack Start">
   <img src="https://img.shields.io/badge/TypeScript-5-blue?style=flat-square" alt="TypeScript">
 </p>
 
 ---
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/editor-dark.png" alt="Creating a paste: editor card with the options rail (dark)" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/view-light.png" alt="Viewing a paste with share link, stats and actions (light)" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/phone-editor.png" alt="Phone: editor with the sticky action dock" width="24%" />
+  <img src="docs/screenshots/phone-options.png" alt="Phone: paste options in a bottom sheet" width="24%" />
+  <img src="docs/screenshots/phone-view.png" alt="Phone: paste view with stats strip" width="24%" />
+  <img src="docs/screenshots/phone-view-light.png" alt="Phone: paste view in light mode" width="24%" />
+</p>
 
 ## Features
 
@@ -25,7 +42,10 @@
 - **Burn After Reading** - Self-destructing pastes after first view
 - **Expiration Options** - Never, 10 min, 1 hour, 1 day, 1 week, 1 month
 - **Zero Authentication** - No account, no email, no friction
-- **Dark Mode** - Pure black OLED-optimized dark theme
+- **Dark Mode** - Pure black OLED-optimized dark theme, with a matching light theme
+- **Mobile-first** - Options in a bottom sheet, actions in a sticky thumb-reach dock, code that wraps instead of scrolling sideways
+- **Keyboard-friendly** - ⌘K command menu, ⌘↵ to create, N for a new paste
+- **Fast navigation** - Hover preloading, skeleton loaders, a route progress bar and native View Transitions
 - **Bot Protection** - Honeypot fields, time-based detection, JS challenges
 - **Rate Limiting** - In-memory sliding window rate limiter
 - **Admin Analytics** - Optional `/admin` dashboard (paste/view totals, language mix, size distribution, activity over time). Disabled unless `ADMIN_TOKEN` is set
@@ -35,9 +55,9 @@
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | [Next.js 16.3](https://nextjs.org) (App Router, Server Actions, Cache Components) |
+| Framework | [TanStack Start](https://tanstack.com/start) (file routes, server functions, request middleware) on Vite + Nitro |
 | Language | TypeScript 5 (strict mode) |
-| Styling | Tailwind CSS 4 |
+| Styling | Tailwind CSS 4, Geist + Geist Mono, [Lucide](https://lucide.dev) icons |
 | Database | SQLite via [Drizzle ORM](https://orm.drizzle.team) + [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) |
 | Object Storage | [Cloudflare R2](https://developers.cloudflare.com/r2/) (S3-compatible) |
 | Syntax Highlighting | [Shiki](https://shiki.style) (150+ languages) |
@@ -52,17 +72,19 @@
 
 ```
 bin-21/
-  app/                    # Next.js App Router pages
-    [id]/                 # View paste page + raw endpoint
-    admin/                # Analytics dashboard (env-gated)
-    layout.tsx            # Root layout with theme provider
-    page.tsx              # Home / create paste
+  src/
+    routes/               # File routes: /, /$id, /$id/raw, /admin, OG images, manifest
+    router.tsx            # Router (preloading, pending UI, view transitions)
+    start.ts              # Request middleware (rate limiting, admin gate)
+    server.ts             # Server entry (opens the DB, starts the janitor)
+    styles.css            # Design tokens + component styles
   server/
-    actions/              # Server Actions (entry points, Zod validation)
+    actions/              # Server functions (entry points, Zod validation)
     services/             # Core business logic (DB, R2, stats)
   lib/
     db/                   # Drizzle schema, SQLite client, migrations
-    shiki.ts              # Syntax highlighter (bounded language cache)
+    shiki.ts              # Syntax highlighter (JS regex engine, bounded caches)
+    lru.ts                # Byte-capped LRU used for content + highlight caches
     languages.ts          # 150+ language definitions
     rate-limit.ts         # In-memory rate limiter
     janitor.ts            # Reclaims expired pastes
@@ -72,11 +94,9 @@ bin-21/
     ui/                   # Vendored chart primitives
     admin/                # Analytics dashboard components
   types/                  # Shared TypeScript types
-  instrumentation.ts      # Server startup hook (starts the janitor)
-  proxy.ts                # Next.js 16 proxy (rate limiting, admin gate)
 ```
 
-**Data flow:** Client form -> Server Action (validates with Zod) -> Service (uploads content to R2, saves metadata to SQLite) -> Returns paste ID -> Redirect to view page.
+**Data flow:** Client form -> server function (validates with Zod) -> Service (uploads content to R2, saves metadata to SQLite) -> Returns paste ID -> Redirect to view page.
 
 Paste content is stored in Cloudflare R2, never in the database. Encrypted pastes use client-side AES-256-GCM - the password never reaches the server.
 
@@ -127,7 +147,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ```bash
 npm run dev          # Start dev server
 npm run build        # Production build
-npm start            # Start production server
+npm start            # Start production server (node .output/server/index.mjs, 192MB heap cap)
 npm run lint         # ESLint
 npm run db:push      # Push schema to database
 npm run db:generate  # Generate Drizzle migrations
@@ -166,11 +186,11 @@ RUN npm run build
 
 FROM base AS runner
 ENV NODE_ENV=production
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+# .output is self-contained: server bundle, traced node_modules, public assets
+COPY --from=builder /app/.output ./.output
+COPY --from=builder /app/lib/db/migrations ./lib/db/migrations
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["node", "--max-old-space-size=192", ".output/server/index.mjs"]
 ```
 
 ## Privacy & Security

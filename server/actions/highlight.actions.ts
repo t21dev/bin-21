@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { highlightCode, type ShikiThemeId, SHIKI_THEMES } from '@/lib/shiki'
+import { highlightCodeCached, type ShikiThemeId, SHIKI_THEMES } from '@/lib/shiki'
 
 const VALID_THEMES = new Set<string>(SHIKI_THEMES.map((t) => t.id))
 
@@ -12,7 +12,7 @@ export const highlightAction = createServerFn({ method: 'POST' })
     if (!VALID_THEMES.has(theme)) return { error: 'Invalid theme' }
 
     try {
-      const html = await highlightCode(code, language, theme as ShikiThemeId)
+      const html = await highlightCodeCached(code, language, theme as ShikiThemeId)
       return { html }
     } catch {
       return { error: 'Highlighting failed' }

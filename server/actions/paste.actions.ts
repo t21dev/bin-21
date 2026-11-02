@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { LANGUAGE_IDS } from '@/lib/languages'
-import { highlightCode } from '@/lib/shiki'
+import { highlightCodeCached } from '@/lib/shiki'
 import { checkRateLimit, RATE_LIMITS, getClientIP } from '@/lib/rate-limit'
 import * as pasteService from '@/server/services/paste.service'
 import type { ActionResult, PasteWithContent } from '@/types'
@@ -104,7 +104,7 @@ export const getPastePage = createServerFn({ method: 'GET' })
     let highlightedHtml: string | undefined
     if (!paste.isEncrypted && paste.language !== 'markdown') {
       try {
-        highlightedHtml = await highlightCode(paste.content, paste.language)
+        highlightedHtml = await highlightCodeCached(paste.content, paste.language)
       } catch {
         // Fall back to plain text
       }

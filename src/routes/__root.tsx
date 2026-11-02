@@ -5,6 +5,8 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { ServiceWorkerRegister } from '@/components/sw-register'
+import { CommandMenu } from '@/components/command-menu'
+import { RouteProgress } from '@/components/route-progress'
 import { absoluteUrl, ogImageMeta } from '@/lib/seo'
 import appCss from '../styles.css?url'
 
@@ -67,13 +69,15 @@ function RootDocument({ children }: { children: ReactNode }) {
 function RootLayout() {
   return (
     <ThemeProvider>
-      <div className="flex min-h-screen flex-col">
+      <RouteProgress />
+      <div className="flex min-h-dvh flex-col">
         <Header />
         <main className="flex-1">
           <Outlet />
         </main>
         <Footer />
       </div>
+      <CommandMenu />
       <ServiceWorkerRegister />
     </ThemeProvider>
   )

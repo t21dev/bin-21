@@ -97,19 +97,19 @@ RUN npm run build
 
 FROM base AS runner
 ENV NODE_ENV=production
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
+# .output is self-contained: the server bundle, the node_modules it needs
+# (traced, including the native better-sqlite3 binary), and public assets.
+COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/lib/db/migrations ./lib/db/migrations
-COPY --from=builder /app/package.json ./package.json
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["node", "--max-old-space-size=192", ".output/server/index.mjs"]
 ```
 
-Two things this image must keep, which a stock Next.js Dockerfile drops:
+Two things to know about this image:
 
-- **`lib/db/migrations`** — migrations are read from disk at boot. Without them the app cannot create its schema.
-- **`node_modules`** — `output: 'standalone'` is deliberately not enabled, because tracing a native `.node` addon plus Shiki's runtime grammar loading into a standalone bundle is fragile. Railway bills memory and CPU, not image size, so the smaller bundle buys little here.
+- **`lib/db/migrations`** must be copied: migrations are read from disk at boot. Without them the app cannot create its schema.
+- **`.output` is all you need from the build.** Nitro traces the server's dependencies into `.output/server/node_modules`. Shiki, better-sqlite3 and @vercel/og are kept as real packages there (see `traceDeps` in `vite.config.ts`), because Shiki loads grammars on demand and better-sqlite3 is a native addon. Build in the same image/platform you run in.
+- **`--max-old-space-size=192`** caps the V8 heap so garbage collection runs early instead of letting memory drift toward the container limit.
 
 Build and run:
 
@@ -166,8 +166,8 @@ npm install
 cp .env.example .env
 # Edit .env with your configuration
 
-npm run build      # Build for production
-npm start          # Start on port 3000 (migrations run on boot)
+npm run build      # Build for production (outputs .output/)
+npm start          # Start on port 3000 (migrations run on boot; set PORT to change)
 ```
 
 Use pm2 to keep the app running:
@@ -264,7 +264,8 @@ npm run build
 
 ## Troubleshooting
 
-- **Build fails with Shiki errors** — ensure `serverExternalPackages: ['shiki']` is in `next.config.ts`. Shiki uses WASM binaries that must be loaded at runtime.
+- **Shiki or better-sqlite3 errors at runtime** — check that `.output/server/node_modules` contains `shiki`, `@shikijs` and `better-sqlite3`. They are traced there by `traceDeps` in `vite.config.ts`; do not remove those entries.
+- **`DATABASE_PATH ... is a relative path` on boot** — in production the path must be absolute (e.g. `/data/bin21.db`) so data lands on the mounted volume.
 - **R2/S3 connection errors** — verify your access key, secret key, and bucket name. Ensure the bucket exists and credentials have read/write permissions.
 - **All pastes disappear on restart** — `DATABASE_PATH` is pointing at ephemeral storage. Mount a volume and point it there.
 - **`no such table: pastes`** — the `lib/db/migrations` directory is missing from the deployed image. Migrations are read from disk at boot; copy that folder.
