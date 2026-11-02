@@ -135,8 +135,8 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
   return (
     <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_288px] md:items-start">
       {/* ---------- Content card ---------- */}
-      <section className="card vt-card flex min-w-0 flex-col overflow-hidden">
-        <header className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2.5">
+      <section className="card vt-card flex min-w-0 flex-col overflow-clip">
+        <header className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 rounded-t-[14px] bg-[var(--surface)] flex items-center gap-2 border-b border-[var(--border)] px-3 py-2.5">
           <FileCode2 className="h-4 w-4 shrink-0 text-[var(--text-faint)]" />
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium">{paste.title || 'Untitled paste'}</h1>
           {paste.isEncrypted && <span className="chip"><Lock />Encrypted</span>}

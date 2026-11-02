@@ -217,8 +217,8 @@ export function PasteForm() {
   return (
     <form ref={formRef} onSubmit={handleSubmit(onSubmit, onInvalid)} className="grid gap-4 md:grid-cols-[minmax(0,1fr)_288px] md:items-start">
       {/* ---------- Editor card ---------- */}
-      <section className="card card-focus vt-card flex min-w-0 flex-col overflow-hidden">
-        <header className="flex items-center gap-2 border-b border-[var(--border)] py-1.5 pr-1.5 pl-3">
+      <section className="card card-focus vt-card flex min-w-0 flex-col overflow-clip">
+        <header className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 rounded-t-[14px] bg-[var(--surface)] flex items-center gap-2 border-b border-[var(--border)] py-1.5 pr-1.5 pl-3">
           <FileCode2 className="h-4 w-4 shrink-0 text-[var(--text-faint)]" />
           <label htmlFor="paste-title" className="sr-only">Title</label>
           <input
