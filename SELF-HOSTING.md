@@ -102,14 +102,14 @@ ENV NODE_ENV=production
 COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/lib/db/migrations ./lib/db/migrations
 EXPOSE 3000
-CMD ["node", "--max-old-space-size=192", ".output/server/index.mjs"]
+CMD ["node", "--max-old-space-size=256", ".output/server/index.mjs"]
 ```
 
 Two things to know about this image:
 
 - **`lib/db/migrations`** must be copied: migrations are read from disk at boot. Without them the app cannot create its schema.
 - **`.output` is all you need from the build.** Nitro traces the server's dependencies into `.output/server/node_modules`. Shiki, better-sqlite3 and @vercel/og are kept as real packages there (see `traceDeps` in `vite.config.ts`), because Shiki loads grammars on demand and better-sqlite3 is a native addon. Build in the same image/platform you run in.
-- **`--max-old-space-size=192`** caps the V8 heap so garbage collection runs early instead of letting memory drift toward the container limit.
+- **`--max-old-space-size=256`** caps the V8 heap so garbage collection runs early instead of letting memory drift toward the container limit.
 
 Build and run:
 

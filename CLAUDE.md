@@ -15,7 +15,7 @@ It was ported from Next.js 16 to cut memory on Railway (billed per GB). Measured
 ```bash
 npm run dev          # Vite dev server (http://localhost:3000)
 npm run build        # Production build -> .output/
-npm start            # node --max-old-space-size=192 .output/server/index.mjs
+npm start            # node --max-old-space-size=256 .output/server/index.mjs
 npm run lint         # ESLint (flat config, typescript-eslint + react-hooks)
 npm run db:generate  # Generate a SQL migration after editing lib/db/schema.ts
 npm run db:push      # Push schema directly (dev shortcut, skips migration files)
@@ -58,7 +58,7 @@ npm run db:push      # Push schema directly (dev shortcut, skips migration files
 - **Nitro `traceDeps`** keeps `shiki`, `better-sqlite3` and `@vercel/og` as real packages in `.output/server/node_modules`. Bundled, Shiki's ~300 grammars land in one 8MB module parsed on first use. Don't remove those entries.
 - **`@vercel/og` is pinned to 0.11.x**: 1.0.x's Node ESM build does a CommonJS `require("fs")` and crashes.
 - **Railway config is in `railway.json`** (config-as-code overrides the dashboard). It pins the start command; before it existed the dashboard had `bun --bun ... next start`, so production ran on Bun and ignored the heap cap.
-- **Heap cap.** `npm start` runs Node with `--max-old-space-size=192`. It's in the start script, not `NODE_OPTIONS`, because the build needs more. The app runs on **Node**, not Bun: `better-sqlite3` is a Node native addon.
+- **Heap cap.** `npm start` runs Node with `--max-old-space-size=256`. It's in the start script, not `NODE_OPTIONS`, because the build needs more. The app runs on **Node**, not Bun: `better-sqlite3` is a Node native addon.
 - **`<head>` tags** come from route `head()` functions. `HeadContent` de-duplicates `meta` by `name`, so the two `theme-color` tags are rendered directly in `__root.tsx`. Absolute OG URLs use `NEXT_PUBLIC_APP_URL`, inlined at build time (`vite.config.ts` `define`) so server and client render identical tags. The variable keeps its old name so Railway config doesn't change.
 - **Expired pastes** are reclaimed by an in-process janitor (`lib/janitor.ts`, started from `src/server.ts`), gated behind `JANITOR_ENABLED`.
 - **Static caching**: hashed `/assets/*` are immutable for a year (Nitro default); icons a week; `sw.js` is `no-cache` (route rules in `vite.config.ts`). Paste OG images are cached an hour.

@@ -147,7 +147,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ```bash
 npm run dev          # Start dev server
 npm run build        # Production build
-npm start            # Start production server (node .output/server/index.mjs, 192MB heap cap)
+npm start            # Start production server (node .output/server/index.mjs, 256MB heap cap)
 npm run lint         # ESLint
 npm run db:push      # Push schema to database
 npm run db:generate  # Generate Drizzle migrations
@@ -190,7 +190,7 @@ ENV NODE_ENV=production
 COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/lib/db/migrations ./lib/db/migrations
 EXPOSE 3000
-CMD ["node", "--max-old-space-size=192", ".output/server/index.mjs"]
+CMD ["node", "--max-old-space-size=256", ".output/server/index.mjs"]
 ```
 
 ## Privacy & Security

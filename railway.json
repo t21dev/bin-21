@@ -5,7 +5,7 @@
     "buildCommand": "npm run build"
   },
   "deploy": {
-    "startCommand": "node --max-old-space-size=192 .output/server/index.mjs",
+    "startCommand": "node --max-old-space-size=256 .output/server/index.mjs",
     "healthcheckPath": "/",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
