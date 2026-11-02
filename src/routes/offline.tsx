@@ -1,6 +1,10 @@
-'use client'
+import { createFileRoute } from '@tanstack/react-router'
 
-export default function OfflinePage() {
+export const Route = createFileRoute('/offline')({
+  component: OfflinePage,
+})
+
+function OfflinePage() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
       <div className="mb-6 flex items-baseline gap-2">

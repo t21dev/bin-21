@@ -1,4 +1,9 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
 @import "tailwindcss";
+/* Scan component/lib sources outside src/ for class names. */
+@source "../components";
+@source "../lib";
 @plugin "@tailwindcss/typography";
 
 @theme inline {
@@ -32,8 +37,8 @@
   --color-border: var(--border);
   --color-card: var(--surface);
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Menlo', 'Monaco', monospace;
+  --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'Menlo', 'Monaco', monospace;
 
   --animate-fade-in: fadeIn 0.2s ease-out;
   --animate-slide-up: slideUp 0.3s ease-out;

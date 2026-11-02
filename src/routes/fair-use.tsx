@@ -1,16 +1,22 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
+import { createFileRoute, Link } from '@tanstack/react-router'
 
-export const metadata: Metadata = {
-  title: 'Fair Use Policy - Bin 21',
-  description: 'Fair use policy for Bin 21 pastebin service.',
-}
+export const Route = createFileRoute('/fair-use')({
+  head: () => ({
+    meta: [
+      { title: 'Fair Use Policy - Bin 21' },
+      { name: 'description', content: 'Fair use policy for Bin 21 pastebin service.' },
+    ],
+  }),
+  // Static content: no loader, safe to keep cached client-side.
+  staleTime: Infinity,
+  component: FairUsePage,
+})
 
-export default function FairUsePage() {
+function FairUsePage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
       <Link
-        href="/"
+        to="/"
         className="mb-8 inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-primary"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bin21-v2'
+const CACHE_NAME = 'bin21-v3'
 const OFFLINE_URL = '/offline'
 
 self.addEventListener('install', (event) => {
@@ -38,7 +38,7 @@ self.addEventListener('fetch', (event) => {
   // Static assets (JS, CSS, fonts, images): cache-first
   const url = new URL(request.url)
   if (
-    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.startsWith('/assets/') ||
     url.pathname.startsWith('/icons/') ||
     url.pathname.endsWith('.woff2') ||
     url.pathname.endsWith('.woff')

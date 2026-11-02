@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import type { JsonObject } from '@/types'
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 
 export const pastes = sqliteTable(
@@ -19,7 +20,7 @@ export const pastes = sqliteTable(
       .default(sql`(unixepoch())`)
       .notNull(),
     ipHash: text('ip_hash'),
-    metadata: text('metadata', { mode: 'json' }).$type<Record<string, unknown>>(),
+    metadata: text('metadata', { mode: 'json' }).$type<JsonObject>(),
   },
   (table) => [index('pastes_expires_at_idx').on(table.expiresAt)]
 )

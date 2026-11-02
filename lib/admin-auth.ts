@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
-import { cookies } from 'next/headers'
+import { getCookie } from '@tanstack/react-start/server'
 
 export const ADMIN_COOKIE = 'bin21_admin'
 
@@ -22,8 +22,8 @@ export function tokenMatches(candidate: string | undefined): boolean {
   return timingSafeEqual(a, b)
 }
 
-export async function isAuthenticated(): Promise<boolean> {
+/** Only valid inside a request (server function or server route). */
+export function isAuthenticated(): boolean {
   if (!isAdminEnabled()) return false
-  const store = await cookies()
-  return tokenMatches(store.get(ADMIN_COOKIE)?.value)
+  return tokenMatches(getCookie(ADMIN_COOKIE))
 }

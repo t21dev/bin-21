@@ -1,10 +1,8 @@
-import { ImageResponse } from 'next/og'
+import { ImageResponse } from '@vercel/og'
 
-export const alt = 'Bin 21 - Modern Pastebin'
-export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
+const size = { width: 1200, height: 630 }
 
-export default function OGImage() {
+export function homeOgImage(): ImageResponse {
   return new ImageResponse(
     (
       <div

@@ -1,57 +1,11 @@
-import { Suspense } from 'react'
-import { notFound } from 'next/navigation'
-import { connection } from 'next/server'
-import type { Metadata } from 'next'
-import { isAdminEnabled, isAuthenticated } from '@/lib/admin-auth'
-import { getPlatformStats } from '@/server/services/stats.service'
-import { adminLogout } from '@/server/actions/admin.actions'
-import { AdminLogin } from '@/components/admin/admin-login'
 import { StatTile } from '@/components/admin/stat-tile'
 import { LanguageBarChart } from '@/components/admin/language-bar-chart'
 import { ActivityAreaChart } from '@/components/admin/activity-area-chart'
 import { SizeRadialChart } from '@/components/admin/size-radial-chart'
 import { formatBytes } from '@/lib/utils'
+import type { PlatformStats } from '@/server/services/stats.service'
 
-// Analytics must never be indexed or cached in a shared layer.
-export const metadata: Metadata = {
-  title: 'Admin - Bin 21',
-  robots: { index: false, follow: false },
-}
-
-export default function AdminPage() {
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <Suspense fallback={<AdminSkeleton />}>
-        <AdminGate />
-      </Suspense>
-    </div>
-  )
-}
-
-/**
- * Reads cookies, so it lives inside the Suspense boundary — under Cache
- * Components runtime data access outside one blocks the prerendered shell.
- */
-async function AdminGate() {
-  // Pin this subtree to request time. Without it, the env check below is
-  // evaluated during prerender and the result is baked into a static page:
-  // the gate would answer from build-time state instead of the live request.
-  await connection()
-
-  // With no ADMIN_TOKEN configured the admin area simply doesn't exist.
-  if (!isAdminEnabled()) {
-    notFound()
-  }
-
-  if (!(await isAuthenticated())) {
-    return <AdminLogin />
-  }
-
-  return <Dashboard />
-}
-
-async function Dashboard() {
-  const stats = await getPlatformStats()
+export function Dashboard({ stats, onSignOut }: { stats: PlatformStats; onSignOut: () => void }) {
   const { totals } = stats
 
   const encryptedPct = totals.pastes ? Math.round((totals.encrypted / totals.pastes) * 100) : 0
@@ -68,14 +22,15 @@ async function Dashboard() {
               : 'No pastes yet'}
           </p>
         </div>
-        <form action={adminLogout}>
+        <div>
           <button
-            type="submit"
+            type="button"
+            onClick={onSignOut}
             className="rounded-lg border border-[var(--border)] px-3 py-2 font-mono text-xs transition-colors hover:bg-[var(--surface)]"
           >
             Sign out
           </button>
-        </form>
+        </div>
       </header>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -154,7 +109,7 @@ async function Dashboard() {
   )
 }
 
-function AdminSkeleton() {
+export function AdminSkeleton() {
   return (
     <div className="animate-pulse space-y-6" aria-hidden>
       <div className="h-7 w-64 rounded bg-[var(--border)]" />

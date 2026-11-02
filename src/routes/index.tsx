@@ -1,6 +1,11 @@
+import { createFileRoute } from '@tanstack/react-router'
 import { PasteForm } from '@/components/paste-form'
 
-export default function HomePage() {
+export const Route = createFileRoute('/')({
+  component: HomePage,
+})
+
+function HomePage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
       <div className="mb-5 sm:mb-6">

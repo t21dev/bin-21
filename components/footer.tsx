@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { Link } from '@tanstack/react-router'
 
 export function Footer() {
   return (
@@ -9,7 +9,7 @@ export function Footer() {
         </p>
         <div className="flex items-center gap-4">
           <Link
-            href="/fair-use"
+            to="/fair-use"
             className="transition-colors hover:text-primary"
           >
             Fair Use

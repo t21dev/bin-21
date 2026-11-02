@@ -1,9 +1,7 @@
-import { ImageResponse } from 'next/og'
+import { ImageResponse } from '@vercel/og'
 import { readPasteMetadata } from '@/server/services/paste.service'
 
-export const alt = 'Bin 21 Paste'
-export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
+const size = { width: 1200, height: 630 }
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -11,8 +9,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default async function TwitterImage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export async function pasteOgImage(id: string): Promise<ImageResponse> {
   const paste = await readPasteMetadata(id)
 
   if (!paste) {

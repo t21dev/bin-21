@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@tanstack/react-router'
 import { adminLogin } from '@/server/actions/admin.actions'
 
 export function AdminLogin() {
@@ -14,10 +14,10 @@ export function AdminLogin() {
     if (!token) return
     setError('')
     startTransition(async () => {
-      const result = await adminLogin(token)
+      const result = await adminLogin({ data: token })
       if (result.success) {
         setToken('')
-        router.refresh()
+        await router.invalidate()
       } else {
         setError(result.error || 'Login failed')
       }

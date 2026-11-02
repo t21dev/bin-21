@@ -1,5 +1,9 @@
 export type ExpiresIn = 'never' | '10m' | '1h' | '1d' | '1w' | '1M'
 
+/** A JSON column's value. Serializable across the server-function boundary. */
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+export type JsonObject = { [key: string]: JsonValue }
+
 export interface CreatePasteInput {
   content: string
   title?: string
@@ -23,7 +27,7 @@ export interface PasteMetadata {
   viewCount: number
   sizeBytes: number
   createdAt: Date
-  metadata: Record<string, unknown> | null
+  metadata: JsonObject | null
 }
 
 export interface PasteWithContent extends PasteMetadata {

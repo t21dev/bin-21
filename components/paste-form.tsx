@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useNavigate } from '@tanstack/react-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -39,7 +39,7 @@ const pasteFormSchema = z.object({
 type PasteFormValues = z.input<typeof pasteFormSchema>
 
 export function PasteForm() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const [isPending, startTransition] = useTransition()
   const formRef = useRef<HTMLFormElement>(null)
 
@@ -105,7 +105,7 @@ export function PasteForm() {
     let cancelled = false
     setPreviewLoading(true)
 
-    highlightAction(content, language, previewTheme).then((result) => {
+    highlightAction({ data: { code: content, language, theme: previewTheme } }).then((result) => {
       if (cancelled) return
       if ('html' in result) {
         setPreviewHtml(result.html)
@@ -164,7 +164,7 @@ export function PasteForm() {
           encryptionSalt = encrypted.salt
         }
 
-        const result = await createPaste({
+        const result = await createPaste({ data: {
           content: finalContent,
           title: data.title || undefined,
           language: data.language,
@@ -175,7 +175,7 @@ export function PasteForm() {
           burnAfter: data.burnAfter,
           _honeypot: honeypot || undefined,
           _timestamp: formLoadTime,
-        })
+        } })
 
         if (result.success && result.data) {
           // Cache Components keeps this route mounted (React <Activity>) instead
@@ -185,7 +185,7 @@ export function PasteForm() {
           setShowPreview(false)
           setPreviewHtml('')
           setServerError('')
-          router.push(`/${result.data.id}`)
+          navigate({ to: '/$id', params: { id: result.data.id } })
         } else {
           setServerError(result.error || 'Failed to create paste')
         }

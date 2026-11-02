@@ -45,7 +45,7 @@ export function PasteViewer({ paste, highlightedHtml, initialTheme = 'github-dar
   function fetchHighlight(code: string, lang: string, themeId: ShikiThemeId) {
     const id = ++requestId.current
     setThemeLoading(true)
-    highlightAction(code, lang, themeId).then((result) => {
+    highlightAction({ data: { code, language: lang, theme: themeId } }).then((result) => {
       if (requestId.current !== id) return
       if ('html' in result) setReHighlightedHtml(result.html)
       setThemeLoading(false)
