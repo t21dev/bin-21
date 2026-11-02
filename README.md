@@ -44,7 +44,7 @@
 - **Zero Authentication** - No account, no email, no friction
 - **Dark Mode** - Pure black OLED-optimized dark theme, with a matching light theme
 - **Mobile-first** - Options in a bottom sheet, actions in a sticky thumb-reach dock, code that wraps instead of scrolling sideways
-- **Keyboard-friendly** - ⌘K command menu, ⌘↵ to create, N for a new paste
+- **Keyboard-friendly** - ⌘↵ to create, N for a new paste
 - **Fast navigation** - Hover preloading, skeleton loaders, a route progress bar and native View Transitions
 - **Bot Protection** - Honeypot fields, time-based detection, JS challenges
 - **Rate Limiting** - In-memory sliding window rate limiter

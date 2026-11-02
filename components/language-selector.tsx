@@ -113,7 +113,7 @@ export function LanguageSelector({ value, onChange }: LanguageSelectorProps) {
 
       {open && (
         <div className="absolute inset-x-0 top-full z-50 mt-1.5 origin-top animate-[rise_160ms_var(--ease-out)_both] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_16px_40px_-12px_var(--shadow)]">
-          <div className="flex items-center gap-2 border-b border-[var(--border)] px-3">
+          <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 transition-colors focus-within:border-[var(--accent)] [&:focus-within>svg]:text-[var(--accent-text)]">
             <Search className="h-4 w-4 shrink-0 text-[var(--text-faint)]" />
             <label htmlFor="language-search" className="sr-only">Search languages</label>
             <input

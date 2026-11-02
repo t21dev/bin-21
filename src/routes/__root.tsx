@@ -5,7 +5,6 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { ServiceWorkerRegister } from '@/components/sw-register'
-import { CommandMenu } from '@/components/command-menu'
 import { RouteProgress } from '@/components/route-progress'
 import { absoluteUrl, ogImageMeta } from '@/lib/seo'
 import appCss from '../styles.css?url'
@@ -77,7 +76,6 @@ function RootLayout() {
         </main>
         <Footer />
       </div>
-      <CommandMenu />
       <ServiceWorkerRegister />
     </ThemeProvider>
   )

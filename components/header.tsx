@@ -1,7 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
 import { ThemeToggle } from './theme-toggle'
-import { openCommandMenu } from './command-menu'
 
 function GitHubMark() {
   return (
@@ -19,20 +17,6 @@ export function Header() {
           Bin<span className="text-[var(--accent-text)]">21</span>
           <span aria-hidden="true" className="ml-1.5 inline-block h-1.5 w-1.5 self-center rounded-[2px] bg-[var(--accent)] shadow-[0_0_10px_var(--accent-glow)]" />
         </Link>
-
-        <button
-          type="button"
-          onClick={openCommandMenu}
-          className="btn hidden w-[min(380px,38vw)] justify-start text-[var(--text-faint)] sm:inline-flex"
-          aria-label="Open command menu"
-        >
-          <Search />
-          <span className="flex-1 truncate text-left font-normal">Jump to, switch theme…</span>
-          <span className="kbd">⌘K</span>
-        </button>
-        <button type="button" onClick={openCommandMenu} className="btn btn-icon sm:hidden" aria-label="Open command menu">
-          <Search />
-        </button>
 
         <a
           href="https://github.com/t21dev/bin-21"

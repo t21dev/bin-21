@@ -1,6 +1,6 @@
-/* Hallmark · redesign: app · genre: modern-minimal · macrostructure: Workbench (app) · theme: Console/Mint (custom)
- * vibe: "fast keyboard tool, OLED black, calm mint signal"
- * paper oklch(0% 0 0) dark / oklch(98.6% 0.002 150) light · accent oklch(79% 0.14 160) mint-emerald
+/* Hallmark · redesign: app · genre: modern-minimal · macrostructure: Workbench (app) · theme: Console/Green (custom)
+ * vibe: "fast keyboard tool, OLED black, fresh green signal"
+ * paper oklch(0% 0 0) dark / oklch(98.6% 0.002 150) light · accent oklch(73% 0.15 157) fresh green (Excel family)
  * type: Geist + Geist Mono · axes: dark / grotesk-sans / chromatic-green */
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
@@ -26,12 +26,12 @@
   --text: oklch(18% 0.012 150);
   --text-muted: oklch(45% 0.012 150);
   --text-faint: oklch(60% 0.01 150);
-  --accent: oklch(74% 0.14 160);          /* fills: buttons, switches, focus */
-  --accent-hover: oklch(70% 0.14 160);
-  --accent-text: oklch(50% 0.11 162);     /* text/icons on paper */
-  --accent-ink: oklch(17% 0.03 165);      /* text on an accent fill */
-  --accent-wash: oklch(74% 0.14 160 / 0.16);
-  --accent-glow: oklch(65% 0.14 160 / 0.25);
+  --accent: oklch(55% 0.13 155);          /* fills: buttons, switches, focus (~#188F53; white text ≥4.5:1) */
+  --accent-hover: oklch(51% 0.125 154);
+  --accent-text: oklch(50% 0.12 152);     /* text/icons on paper (#107C41) */
+  --accent-ink: oklch(99% 0.01 157);      /* text on an accent fill */
+  --accent-wash: oklch(62% 0.135 157 / 0.13);
+  --accent-glow: oklch(55% 0.13 155 / 0.3);
   --danger: oklch(58% 0.2 25);
   --warning: oklch(70% 0.15 70);
   --scrim: oklch(20% 0.01 150 / 0.35);
@@ -48,12 +48,12 @@
   --text: oklch(96% 0.005 150);
   --text-muted: oklch(70% 0.01 150);
   --text-faint: oklch(52% 0.01 150);
-  --accent: oklch(79% 0.14 160);
-  --accent-hover: oklch(83% 0.13 160);
-  --accent-text: oklch(80% 0.13 160);
-  --accent-ink: oklch(17% 0.03 165);
-  --accent-wash: oklch(79% 0.14 160 / 0.12);
-  --accent-glow: oklch(79% 0.14 160 / 0.28);
+  --accent: oklch(73% 0.15 157);
+  --accent-hover: oklch(78% 0.15 157);
+  --accent-text: oklch(76% 0.15 157);
+  --accent-ink: oklch(16% 0.03 157);
+  --accent-wash: oklch(73% 0.15 157 / 0.13);
+  --accent-glow: oklch(73% 0.15 157 / 0.3);
   --danger: oklch(68% 0.19 25);
   --warning: oklch(80% 0.14 75);
   --scrim: oklch(0% 0 0 / 0.6);
@@ -126,6 +126,16 @@ button, select, [role="button"], [role="option"], [role="switch"], a[href], labe
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+/* Text fields show focus through their own container (green border + halo on
+   .input, the card glow on the editor, the underline on search rows), so the
+   generic ring would draw a second, mismatched box inside them. Buttons and
+   links keep the ring for keyboard users. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }

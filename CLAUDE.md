@@ -75,8 +75,8 @@ See `.env.example`. Key ones:
 - `ADMIN_TOKEN` - enables `/admin` analytics. Unset means the route 404s
 - `PORT` - listen port (Nitro reads it)
 
-### Design system ("Console", mint)
+### Design system ("Console", green)
 
-All tokens live in `src/styles.css` (`:root` light, `.dark` dark) and are mapped onto Tailwind via `@theme inline`, so `bg-primary`, `text-error` etc. resolve to the palette. Dark is pure black (`oklch(0% 0 0)`) for OLED; the accent is a calm mint-emerald (`--accent` for fills, `--accent-text` for text, which is darker in light mode for contrast). Fonts: Geist + Geist Mono (self-hosted via `@fontsource-variable`). Icons: `lucide-react`.
+All tokens live in `src/styles.css` (`:root` light, `.dark` dark) and are mapped onto Tailwind via `@theme inline`, so `bg-primary`, `text-error` etc. resolve to the palette. Dark is pure black (`oklch(0% 0 0)`) for OLED; the accent is a fresh Excel-family green (`--accent` for fills: #33C481-ish in dark, a deeper ~#188F53 in light so white button text keeps 4.5:1; `--accent-text` for text, #107C41-ish in light). Fonts: Geist + Geist Mono (self-hosted via `@fontsource-variable`). Icons: `lucide-react`.
 
 Layout: on md+ a page is an editor/content card plus a sticky options rail (`Panel`). Below md the rail becomes a bottom sheet and actions live in a fixed bottom `Dock` (48px targets, safe-area aware); `body:has([data-dock]) .site-footer` keeps the footer clear of it. Code soft-wraps with hanging line numbers on phones. The paste card and rail carry `vt-card` / `vt-panel` view-transition names so routes morph rather than cut. Respect `prefers-reduced-motion` (handled globally).
