@@ -219,6 +219,10 @@ Contributions are welcome. Please open an issue first to discuss what you'd like
 4. Push to the branch
 5. Open a Pull Request
 
+## Support
+
+This project is free and open source. If it saves you time, you can support [Team 21](https://t21.dev) on [Patreon](https://www.patreon.com/triptex). It pays for code signing, app store fees and servers.
+
 ## License
 
 [MIT](LICENSE) - do whatever you want with it.
